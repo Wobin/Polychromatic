@@ -26,6 +26,7 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 - Burning enemies and Soulblaze take their hue at the moment they catch fire. Their saturation and brightness are read from your setting when the game starts, so changing those two needs a restart; changing the colour does not.
 - Untick "Show ... fire" to leave that fire exactly stock. To remove it, set the colour mode to Hidden.
 - The mod ships patched copies of a few of the game's effect files and serves them through its own loader. After a game update, any patched file whose original has changed is disabled automatically and that effect falls back to stock until the mod is updated.
+- **Antivirus note.** `bin/asset-redirect.dll` is what serves the patched files. It is an unsigned native library that hooks the game's own file-open calls inside the game process, and machine-learning scanners (Windows Defender's `Wacatac.C!ml` verdict among them) sometimes flag exactly that shape. The source is in this repository and the build is reproducible; each release lists the DLL's SHA-256 so you can check what you downloaded. If Defender quarantines it, restore it and add an exclusion for the mod folder, or report the file as a false positive to Microsoft.
 - Works alongside Redshift: when Redshift is installed it keeps the sniper laser and this mod steps back from it.
 
 ## How it works
