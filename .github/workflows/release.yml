@@ -1,0 +1,73 @@
+name: Release Polychromatic
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to upload (e.g. 1.2.0)
+        required: true
+      changelog:
+        description: Changelog text for the mod page (dispatch runs have no release body)
+        required: false
+
+jobs:
+  package-and-upload:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set version
+        run: echo "VERSION=${{ github.event.release.tag_name || inputs.version }}" >> "$GITHUB_ENV"
+
+      - name: Package (no git artefacts)
+        run: |
+          git archive --format=zip --prefix="Polychromatic/" \
+            -o "Polychromatic-${VERSION}.zip" HEAD
+
+      - name: Verify zip contents
+        run: |
+          unzip -l "Polychromatic-${VERSION}.zip"
+          if unzip -l "Polychromatic-${VERSION}.zip" | grep -E '\.git|\.github'; then
+            echo "Git artefacts found in zip" && exit 1
+          fi
+          if unzip -l "Polychromatic-${VERSION}.zip" | grep -E 'Polychromatic/docs/|README.md'; then
+            echo "Docs found in zip" && exit 1
+          fi
+          unzip -l "Polychromatic-${VERSION}.zip" | grep -q 'Polychromatic/Polychromatic.mod' \
+            || { echo "Missing Polychromatic.mod" && exit 1; }
+          unzip -l "Polychromatic-${VERSION}.zip" | grep -q 'Polychromatic/bin/' \
+            || { echo "Missing bin/" && exit 1; }
+          unzip -l "Polychromatic-${VERSION}.zip" | grep -q 'Polychromatic/payload/' \
+            || { echo "Missing payload/" && exit 1; }
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: Polychromatic-${{ env.VERSION }}
+          path: Polychromatic-${{ env.VERSION }}.zip
+
+      - name: Resolve Nexus global mod id (v3)
+        if: ${{ !github.event.release.prerelease }}
+        run: |
+          MID=$(curl -sS -H "apikey: ${{ secrets.NEXUSMODS_APIKEY }}" \
+            "https://api.nexusmods.com/v3/games/warhammer40kdarktide/mods/${{ vars.NEXUS_MOD_ID }}" \
+            | jq -r '.data.id')
+          if [ -z "$MID" ] || [ "$MID" = "null" ]; then echo "no global mod id" && exit 1; fi
+          echo "NEXUS_GLOBAL_MOD_ID=$MID" >> "$GITHUB_ENV"
+
+      - name: Upload to Nexus Mods
+        if: ${{ !github.event.release.prerelease }}
+        uses: Nexus-Mods/upload-action@v1.0.0-beta.10
+        with:
+          api_key: ${{ secrets.NEXUSMODS_APIKEY }}
+          file_id: ${{ vars.NEXUS_FILE_ID }}
+          mod_id: ${{ env.NEXUS_GLOBAL_MOD_ID }}
+          filename: Polychromatic-${{ env.VERSION }}.zip
+          version: ${{ env.VERSION }}
+          display_name: Polychromatic ${{ env.VERSION }}
+          category: main
+          description: ${{ github.event.release.body || inputs.changelog }}
+          changelog: ${{ github.event.release.body || inputs.changelog }}
+          update_mod_version: true

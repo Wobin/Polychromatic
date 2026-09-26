@@ -1,0 +1,19 @@
+{
+	"name": "Polychromatic",
+	"description": "Recolours or hides fire and las effects, separately for your own and your team's fire, plus the enemy sniper laser.",
+	"version": "1.0.0",
+	"author": "Wobin",
+	"homepage": "https://www.nexusmods.com/warhammer40kdarktide/mods/1346",
+	"source": "https://github.com/Wobin/Polychromatic",
+	"funding": {
+		"kofi": "https://ko-fi.com/wobin_dwonderdog"
+	},
+	"nexusId": "1346",
+	"order": {
+		"require": [],
+		"this_after": [
+			"Redshift"
+		],
+		"this_before": []
+	}
+}
