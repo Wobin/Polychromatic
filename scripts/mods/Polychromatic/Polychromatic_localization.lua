@@ -22,6 +22,7 @@ local localization = {
 	mod_name = { en = "Polychromatic" },
 	mod_description = { en = "Recolours or hides fire and las effects, separately for your own and your team's fire, plus the enemy sniper laser." },
 	restart_required = { en = "Polychromatic: flame files changed while the game was running. Restart the game for them to take effect." },
+	poly_check_description = { en = "Polychromatic: report the setup state to the console log for troubleshooting." },
 	flamer_burn = { en = "Burning enemies follow these settings" },
 	skull_burn = { en = "Burning enemies follow these settings" },
 	skull_burn_description = { en = "Enemies the servo-skull sets alight burn in the skull's colour, taken at the moment they catch fire, and glow in it as they char. Saturation and brightness come from the flamer setting when that source is on, otherwise from this one (restart after changing them). The main flame and the two brightest stack layers recolour; the smoke and embers stay stock." },

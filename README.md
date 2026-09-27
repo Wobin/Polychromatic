@@ -27,6 +27,7 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 - Untick "Show ... fire" to leave that fire exactly stock. To remove it, set the colour mode to Hidden.
 - The mod ships patched copies of a few of the game's effect files and serves them through its own loader. After a game update, any patched file whose original has changed is disabled automatically and that effect falls back to stock until the mod is updated.
 - **Antivirus note.** `bin/asset-redirect.dll` is what serves the patched files. It is an unsigned native library that hooks the game's own file-open calls inside the game process, and machine-learning scanners (Windows Defender's `Wacatac.C!ml` verdict among them) sometimes flag exactly that shape. The source is in this repository and the build is reproducible; each release lists the DLL's SHA-256 so you can check what you downloaded. If Defender quarantines it, restore it and add an exclusion for the mod folder, or report the file as a false positive to Microsoft.
+- **Something not recoloured?** Type `/poly_check` in chat. It says whether the loader is running and how many patched files are being served, and writes a full report (loader state, every patched file, slot packages, your settings, and which effects were seen and coloured) to the console log. Attach that log to a bug report.
 - Works alongside Redshift: when Redshift is installed it keeps the sniper laser and this mod steps back from it.
 
 ## How it works
