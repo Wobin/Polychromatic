@@ -126,6 +126,7 @@ return {
 				options = selector_options,
 				sub_widgets = set_groups,
 			},
+			{ setting_id = "debug_logging", type = "checkbox", default_value = false },
 		},
 	},
 }

@@ -1,7 +1,7 @@
 --[[
 	Name: Polychromatic
 	Author: Wobin
-	Date: 27/09/2026
+	Date: 28/09/2026
 ]]--
 
 local mod = get_mod("Polychromatic")
@@ -1041,796 +1041,17 @@ local SOUL_SLOTS = {
 		material_sha256 = "3cd5dd804fb51e63ead0bf3cd48dcabd99a5357e21cf17de69ef7d87accbfb1f",
 	},
 }
-local SOUL_PAYLOAD_DIR = "../mods/Polychromatic/payload/"
-local SOUL_TEMPLATE_FILE = "soulblaze_flame.template"
-local SOUL_TEMPLATE_SIZE = 244
-local SOUL_VALUE_OFFSET = 220
-local SOUL_HUE_STEPS = 1024
-local SOUL_SATURATION_STEPS = 15
-local BURN_LAYERS = {
-	{ template = "burn_0.burntemplate", size = 244, offset = 220 },
-	{ template = "burn_1.burntemplate", size = 312, offset = 272 },
-	{ template = "burn_2.burntemplate", size = 508, offset = 460 },
-}
-local BURN_PALETTE_SLOTS = 12
-
-local function burn_material_file(layer, slot)
-	return string.format("burn_%d_%02d.burnmat", layer - 1, slot - 1)
-end
-
-local function burn_material_loose(layer, slot)
-	return string.format("data/zz/f0f5000000001%x%02x", layer - 1, slot - 1)
-end
-
-local function soul_material_file(slot)
-	return string.sub(slot.material, 9) .. ".soulmat"
-end
-
-local function soul_bake_profile()
-	for _, category in ipairs({ "mine", "team" }) do
-		local prefix = "staff_" .. category .. "_"
-		local mode = mod:get(prefix .. "mode") or "stock"
-
-		if mod:get(prefix .. "show") ~= false and mode ~= "stock" then
-			local saturation = 1
-			local colour = mod:get(prefix .. "colour")
-
-			if mode ~= "rainbow" and type(colour) == "table" then
-				local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-				local high = math_max(r, g, b)
-
-				saturation = high > 0 and (high - math_min(r, g, b)) / high or 0
-			end
-
-			return saturation, mod:get(prefix .. "brightness") or STOCK_BRIGHTNESS_STEP
-		end
-	end
-
-	return 1, STOCK_BRIGHTNESS_STEP
-end
-
-local GLOW_TEMPLATE_FILE = "0937ecdd02b49a51.glowtemplate"
-local GLOW_MATERIAL_FILE = "0937ecdd02b49a51.glowmat"
-local GLOW_TEMPLATE_SIZE = 308
-local GLOW_VALUE_OFFSET = 264
-
-local IMPACT_GLOW_TEMPLATE_FILE = "7082301abe176951.impactglowtemplate"
-local IMPACT_GLOW_FILE = "7082301abe176951.impactglow"
-local IMPACT_GLOW_SIZE = 371985
-local IMPACT_GLOW_OFFSET = 244
-
-local function bake_impact_glow()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		return
-	end
-
-	local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. IMPACT_GLOW_TEMPLATE_FILE, "rb")
-
-	if not template_file then
-		mod:info("las impact glow: template missing, shipped default used")
-
-		return
-	end
-
-	local template = template_file:read("*a")
-
-	template_file:close()
-
-	if not template or #template ~= IMPACT_GLOW_SIZE then
-		return
-	end
-
-	local value = ffi.new("float[1]", 1000)
-	local mode = mod:get("las_mine_mode")
-
-	if mod:get("las_mine_show") ~= false and (mode == "custom" or mode == "rainbow") then
-		local brightness = math_max(1, math_min(15, mod:get("las_mine_brightness") or STOCK_BRIGHTNESS_STEP))
-		local hue, saturation = 0, 0
-
-		if mode == "custom" then
-			local colour = mod:get("las_mine_colour")
-
-			if type(colour) == "table" then
-				local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-				local high, low = math_max(r, g, b), math_min(r, g, b)
-
-				saturation = high > 0 and (high - low) / high or 0
-
-				if high > low then
-					if high == r then
-						hue = ((g - b) / (high - low)) / 6
-					elseif high == g then
-						hue = (2 + (b - r) / (high - low)) / 6
-					else
-						hue = (4 + (r - g) / (high - low)) / 6
-					end
-
-					hue = hue - math_floor(hue)
-				end
-			end
-		end
-
-		local hue_step = math_floor(hue * 1024) % 1024
-		local saturation_step = math_floor(saturation * 15 + 0.5)
-
-		value[0] = 1000 + saturation_step + (hue_step * 16 + brightness) / 16384
-	end
-
-	local bytes = string.sub(template, 1, IMPACT_GLOW_OFFSET) .. ffi.string(value, 4) .. string.sub(template, IMPACT_GLOW_OFFSET + 5)
-	local path = SOUL_PAYLOAD_DIR .. IMPACT_GLOW_FILE
-	local existing = lua_io.open(path, "rb")
-	local current = existing and existing:read("*a")
-
-	if existing then
-		existing:close()
-	end
-
-	if current ~= bytes then
-		local out = lua_io.open(path, "wb")
-
-		if out then
-			out:write(bytes)
-			out:close()
-		else
-			mod:info("las impact glow: cannot write %s, shipped default used", path)
-		end
-	end
-end
-
-local GLOW_SLOTS = {
-	muzzle = {
-		{
-			package = "content/fx/particles/debug/fx_debug_1m_blue",
-			bundle = "6c363592a35f5599",
-			bundle_sha256 = "8ab4b5e21781b700051df420a400b0f3ae028ca7d272640eb38571936f405c4f",
-			material = "f0f0000000000007",
-			virtual_path = "data/zz/f0f0000000000007",
-		},
-		{
-			package = "content/fx/particles/debug/fx_debug_1m_red",
-			bundle = "88cedce8a498f97e",
-			bundle_sha256 = "4dea34a5d7d323d046af778991c008e2352982a0d2b8106cf1860566d8bc0f96",
-			material = "f0f0000000000008",
-			virtual_path = "data/zz/f0f0000000000008",
-		},
-		{
-			package = "content/fx/particles/debug/fx_debug_1m_green",
-			bundle = "d932eac771ff85ae",
-			bundle_sha256 = "38d3c5c84bab2547f5ecd0c17d2f0658295f4ffd137b2a828a149404d58ee782",
-			material = "f0f0000000000009",
-			virtual_path = "data/zz/f0f0000000000009",
-		},
-		{
-			package = "content/fx/particles/impacts/flesh/blood_splatter_01_old",
-			bundle = "81686d16269ea030",
-			bundle_sha256 = "89d512bf2f590d966944fa3cd71d3ce262f7ac8aad3b9e789f46731cd29c8cd1",
-			material = "f0f000000000000a",
-			virtual_path = "data/zz/f0f000000000000a",
-		},
-		{
-			package = "content/fx/particles/impacts/flesh/blood_fountain_head_01_old",
-			bundle = "43fcfaba468316d8",
-			bundle_sha256 = "8a0c6162946fcb7e99f43ccecac541773b9ace84973ce0fea77c3d3271426e1b",
-			material = "f0f000000000000b",
-			virtual_path = "data/zz/f0f000000000000b",
-		},
-		{
-			package = "content/fx/particles/impacts/weapons/autogun/autogun_impact_02_old",
-			bundle = "ff966c81581e8207",
-			bundle_sha256 = "0146e4e7e09303bdcafaf56305ba6dcdb64328fa826432ddc64bea2520524998",
-			material = "f0f000000000000c",
-			virtual_path = "data/zz/f0f000000000000c",
-		},
-	},
-}
-
-local GLOW_SOURCE_EFFECTS = {
-	["content/fx/particles/weapons/rifles/laspistol/laspistol_heavy_muzzle"] = "muzzle",
-}
-local GLOW_IMPACT_TEMPLATE = "7082301abe176951.impactglowtemplate"
-local GLOW_MUZZLE_TEMPLATE = "0937ecdd02b49a51.glowtemplate"
-local GLOW_IMPACT_SIZE, GLOW_IMPACT_OFFSET = 371985, 244
-local GLOW_MUZZLE_SIZE, GLOW_MUZZLE_OFFSET = 308, 264
-
-local function glow_hsv_rgb(h, s, v)
-	local i = math_floor(h * 6) % 6
-	local f = h * 6 - math_floor(h * 6)
-	local p, q, t = v * (1 - s), v * (1 - s * f), v * (1 - s * (1 - f))
-
-	if i == 0 then
-		return v, t, p
-	elseif i == 1 then
-		return q, v, p
-	elseif i == 2 then
-		return p, v, t
-	elseif i == 3 then
-		return p, q, v
-	elseif i == 4 then
-		return t, p, v
-	end
-
-	return v, p, q
-end
-
-local function glow_hue_of(list, index)
-	return (index - 1) / #list
-end
-
-local function bake_glow_palette()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		return
-	end
-
-	local mode = mod:get("las_mine_mode")
-	local shown = mod:get("las_mine_show") ~= false and (mode == "custom" or mode == "rainbow")
-	local brightness = math_max(1, math_min(15, mod:get("las_mine_brightness") or STOCK_BRIGHTNESS_STEP))
-	local saturation_step = 15
-
-	if mode == "custom" then
-		local colour = mod:get("las_mine_colour")
-
-		if type(colour) == "table" then
-			local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-			local high, low = math_max(r, g, b), math_min(r, g, b)
-
-			saturation_step = math_floor((high > 0 and (high - low) / high or 0) * 15 + 0.5)
-		end
-	end
-
-	for layer, list in pairs(GLOW_SLOTS) do
-		local template_name = layer == "impact" and GLOW_IMPACT_TEMPLATE or GLOW_MUZZLE_TEMPLATE
-		local size = layer == "impact" and GLOW_IMPACT_SIZE or GLOW_MUZZLE_SIZE
-		local offset = layer == "impact" and GLOW_IMPACT_OFFSET or GLOW_MUZZLE_OFFSET
-		local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. template_name, "rb")
-		local template = template_file and template_file:read("*a")
-
-		if template_file then
-			template_file:close()
-		end
-
-		if template and #template == size then
-			for i = 1, #list do
-				local hue = glow_hue_of(list, i)
-				local patch
-
-				if not shown then
-					patch = nil
-				elseif layer == "impact" then
-					local value = ffi.new("float[1]")
-
-					value[0] = 1000 + saturation_step + (math_floor(hue * 1024) % 1024 * 16 + brightness) / 16384
-					patch = ffi.string(value, 4)
-				else
-					local r, g, b = glow_hsv_rgb(hue, saturation_step / 15, brightness / STOCK_BRIGHTNESS_STEP)
-					local rgb = ffi.new("float[3]", r, g, b)
-
-					patch = ffi.string(rgb, 12)
-				end
-
-				local bytes = template
-
-				if patch then
-					bytes = string.sub(template, 1, offset) .. patch .. string.sub(template, offset + #patch + 1)
-				end
-
-				local path = SOUL_PAYLOAD_DIR .. list[i].material .. ".glowpal"
-				local existing = lua_io.open(path, "rb")
-				local current = existing and existing:read("*a")
-
-				if existing then
-					existing:close()
-				end
-
-				if current ~= bytes then
-					local out = lua_io.open(path, "wb")
-
-					if out then
-						out:write(bytes)
-						out:close()
-					else
-						mod:info("las glow palette: cannot write %s", path)
-					end
-				end
-			end
-		end
-	end
-end
-
-local SURFACE_BAKED = {
-	{ template = "f0f0000000000101.surftemplate", file = "f0f0000000000101.glowpal", size = 388884, offset = 244 },
-	{ template = "f0f0000000000102.surftemplate", file = "f0f0000000000102.glowpal", size = 372033, offset = 244 },
-}
-
-local function bake_surface_glow()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		return
-	end
-
-	local mode = mod:get("las_mine_mode")
-	local shown = mod:get("las_mine_show") ~= false and (mode == "custom" or mode == "rainbow")
-	local brightness = math_max(1, math_min(15, mod:get("las_mine_brightness") or STOCK_BRIGHTNESS_STEP))
-	local hue, saturation_step = 0, 0
-
-	if mode == "custom" then
-		local colour = mod:get("las_mine_colour")
-
-		if type(colour) == "table" then
-			local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-			local high, low = math_max(r, g, b), math_min(r, g, b)
-
-			saturation_step = math_floor((high > 0 and (high - low) / high or 0) * 15 + 0.5)
-
-			if high > low then
-				if high == r then
-					hue = ((g - b) / (high - low)) / 6
-				elseif high == g then
-					hue = (2 + (b - r) / (high - low)) / 6
-				else
-					hue = (4 + (r - g) / (high - low)) / 6
-				end
-
-				hue = hue - math_floor(hue)
-			end
-		end
-	end
-
-	local value = ffi.new("float[1]", 1000)
-
-	if shown then
-		value[0] = 1000 + saturation_step + (math_floor(hue * 1024) % 1024 * 16 + brightness) / 16384
-	end
-
-	for i = 1, #SURFACE_BAKED do
-		local entry = SURFACE_BAKED[i]
-		local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. entry.template, "rb")
-		local template = template_file and template_file:read("*a")
-
-		if template_file then
-			template_file:close()
-		end
-
-		if template and #template == entry.size then
-			local bytes = string.sub(template, 1, entry.offset) .. ffi.string(value, 4) .. string.sub(template, entry.offset + 5)
-			local path = SOUL_PAYLOAD_DIR .. entry.file
-			local existing = lua_io.open(path, "rb")
-			local current = existing and existing:read("*a")
-
-			if existing then
-				existing:close()
-			end
-
-			if current ~= bytes then
-				local out = lua_io.open(path, "wb")
-
-				if out then
-					out:write(bytes)
-					out:close()
-				else
-					mod:info("las surface glow: cannot write %s", path)
-				end
-			end
-		end
-	end
-end
-
-local function bake_glow_material()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		return
-	end
-
-	local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. GLOW_TEMPLATE_FILE, "rb")
-
-	if not template_file then
-		mod:info("las glow colour: template missing, shipped default used")
-
-		return
-	end
-
-	local template = template_file:read("*a")
-
-	template_file:close()
-
-	if not template or #template ~= GLOW_TEMPLATE_SIZE then
-		return
-	end
-
-	local bytes = template
-
-	local mode = mod:get("las_mine_mode")
-
-	if mod:get("las_mine_show") ~= false and (mode == "custom" or mode == "rainbow") then
-		local colour = mod:get("las_mine_colour")
-		local scale = (mod:get("las_mine_brightness") or STOCK_BRIGHTNESS_STEP) / STOCK_BRIGHTNESS_STEP
-		local rgb = ffi.new("float[3]")
-
-		for i = 1, 3 do
-			local channel = mode == "rainbow" and 255 or (type(colour) == "table" and colour[i + 1] or 255)
-
-			rgb[i - 1] = math_max(0, math_min(4, channel / 255 * scale))
-		end
-
-		bytes = string.sub(template, 1, GLOW_VALUE_OFFSET) .. ffi.string(rgb, 12) .. string.sub(template, GLOW_VALUE_OFFSET + 13)
-	end
-
-	local path = SOUL_PAYLOAD_DIR .. GLOW_MATERIAL_FILE
-	local existing = lua_io.open(path, "rb")
-	local current = existing and existing:read("*a")
-
-	if existing then
-		existing:close()
-	end
-
-	if current ~= bytes then
-		local out = lua_io.open(path, "wb")
-
-		if out then
-			out:write(bytes)
-			out:close()
-		else
-			mod:info("las glow colour: cannot write %s, shipped default used", path)
-		end
-	end
-end
-
-local function bake_soul_materials()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		mod:info("soulblaze colours: no file access, shipped defaults used")
-		return
-	end
-
-	local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. SOUL_TEMPLATE_FILE, "rb")
-
-	if not template_file then
-		mod:info("soulblaze colours: template missing, shipped defaults used")
-		return
-	end
-
-	local template = template_file:read("*a")
-
-	template_file:close()
-
-	if not template or #template ~= SOUL_TEMPLATE_SIZE then
-		return
-	end
-
-	local saturation, brightness = soul_bake_profile()
-	local saturation_step = math_floor(saturation * SOUL_SATURATION_STEPS + 0.5)
-	local brightness_step = math_max(MIN_BRIGHTNESS_STEP, math_min(MAX_BRIGHTNESS_STEP, brightness))
-	local value = ffi.new("float[1]")
-
-	for i = 1, #SOUL_SLOTS do
-		local hue_step = math_floor((i - 1) / #SOUL_SLOTS * SOUL_HUE_STEPS)
-
-		value[0] = 1000 + saturation_step + (hue_step * 16 + brightness_step) / 16384
-
-		local bytes = string.sub(template, 1, SOUL_VALUE_OFFSET) .. ffi.string(value, 4) .. string.sub(template, SOUL_VALUE_OFFSET + 5)
-		local path = SOUL_PAYLOAD_DIR .. soul_material_file(SOUL_SLOTS[i])
-		local existing = lua_io.open(path, "rb")
-		local current = existing and existing:read("*a")
-
-		if existing then
-			existing:close()
-		end
-
-		if current ~= bytes then
-			local out = lua_io.open(path, "wb")
-
-			if out then
-				out:write(bytes)
-				out:close()
-			else
-				mod:info("soulblaze colours: cannot write %s, shipped default used", path)
-			end
-		end
-	end
-end
-
-local GLOW_REDIRECTS = {
-	{
-		stock = "data/bc/bc95c93681c9f0f7",
-		file = "bc95c93681c9f0f7.livehsv",
-		sha256 = "2b6f58f49b2a07452e2593abdd1c2e92c94c2cb1bdee7f80dd20b7bb1e0eb684",
-	},
-	{
-		stock = "data/zz/f0f0000000000101",
-		file = "f0f0000000000101.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "data/zz/f0f0000000000102",
-		file = "f0f0000000000102.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "6c363592a35f5599",
-		file = "6c363592a35f5599.glowslot",
-		sha256 = "8ab4b5e21781b700051df420a400b0f3ae028ca7d272640eb38571936f405c4f",
-	},
-	{
-		stock = "data/zz/f0f0000000000007",
-		file = "f0f0000000000007.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "88cedce8a498f97e",
-		file = "88cedce8a498f97e.glowslot",
-		sha256 = "4dea34a5d7d323d046af778991c008e2352982a0d2b8106cf1860566d8bc0f96",
-	},
-	{
-		stock = "data/zz/f0f0000000000008",
-		file = "f0f0000000000008.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "d932eac771ff85ae",
-		file = "d932eac771ff85ae.glowslot",
-		sha256 = "38d3c5c84bab2547f5ecd0c17d2f0658295f4ffd137b2a828a149404d58ee782",
-	},
-	{
-		stock = "data/zz/f0f0000000000009",
-		file = "f0f0000000000009.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "81686d16269ea030",
-		file = "81686d16269ea030.glowslot",
-		sha256 = "89d512bf2f590d966944fa3cd71d3ce262f7ac8aad3b9e789f46731cd29c8cd1",
-	},
-	{
-		stock = "data/zz/f0f000000000000a",
-		file = "f0f000000000000a.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "43fcfaba468316d8",
-		file = "43fcfaba468316d8.glowslot",
-		sha256 = "8a0c6162946fcb7e99f43ccecac541773b9ace84973ce0fea77c3d3271426e1b",
-	},
-	{
-		stock = "data/zz/f0f000000000000b",
-		file = "f0f000000000000b.glowpal",
-		virtual = true,
-	},
-	{
-		stock = "ff966c81581e8207",
-		file = "ff966c81581e8207.glowslot",
-		sha256 = "0146e4e7e09303bdcafaf56305ba6dcdb64328fa826432ddc64bea2520524998",
-	},
-	{
-		stock = "data/zz/f0f000000000000c",
-		file = "f0f000000000000c.glowpal",
-		virtual = true,
-	},
-}
-
-for i = 1, #GLOW_REDIRECTS do
-	REDIRECTS[#REDIRECTS + 1] = GLOW_REDIRECTS[i]
-end
-
-for i = 1, #SOUL_SLOTS do
-	local slot = SOUL_SLOTS[i]
-
-	REDIRECTS[#REDIRECTS + 1] = { stock = slot.bundle, file = slot.bundle .. ".soulslot", sha256 = slot.bundle_sha256 }
-	slot.bundle_redirect = #REDIRECTS
-	REDIRECTS[#REDIRECTS + 1] = { stock = slot.material, file = soul_material_file(slot), sha256 = slot.material_sha256 }
-	slot.material_redirect = #REDIRECTS
-end
-
-local BURN_BUNDLES = {
-	{ bundle = "3d574968047de622", sha256 = "6dd0375c40c895e581ded45e0aac09a6e1c2f4a48c9dcaea993410a06a005471", package = "content/fx/particles/enemies/buff_burning" },
-	{ bundle = "ec588082b617bc4d", sha256 = "cb962d2a7df373986633cff3efaa12f17b5bcbf00368c855478162d4aab45fdc", package = "content/fx/particles/enemies/buff_burning_stack_lvl02" },
-	{ bundle = "a9dfcc3f7330140a", sha256 = "02ac7bca710a567d729e2f8bd133da3519bce1708b70d5b8315737fb1f217de0", package = "content/fx/particles/enemies/buff_burning_stack_lvl03" },
-}
-
-for i = 1, #BURN_BUNDLES do
-	REDIRECTS[#REDIRECTS + 1] = { stock = BURN_BUNDLES[i].bundle, file = BURN_BUNDLES[i].bundle .. ".pyro", sha256 = BURN_BUNDLES[i].sha256 }
-end
-
-for layer = 1, #BURN_LAYERS do
-	for slot = 1, BURN_PALETTE_SLOTS do
-		REDIRECTS[#REDIRECTS + 1] = { stock = burn_material_loose(layer, slot), file = burn_material_file(layer, slot), virtual = true }
-	end
-end
-
-REDIRECTS[#REDIRECTS + 1] = { stock = "data/zz/f0f5000000001f01", file = "3586b12003ab11fc.livehsv", virtual = true }
-REDIRECTS[#REDIRECTS + 1] = { stock = "data/zz/f0f5000000001f02", file = "5b86a311c0ac5cf0.livehsv", virtual = true }
-
-bake_soul_materials()
-
-local BURN_BAKE_SOURCES = { "flamer_mine_", "flamer_team_", "skull_mine_", "skull_team_" }
-
-local function burn_bake_profile()
-	for _, prefix in ipairs(BURN_BAKE_SOURCES) do
-		local mode = mod:get(prefix .. "mode") or "stock"
-
-		if mod:get(prefix .. "show") ~= false and mode ~= "stock" then
-			local saturation = 1
-			local colour = mod:get(prefix .. "colour")
-
-			if mode ~= "rainbow" and type(colour) == "table" then
-				local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-				local high = math_max(r, g, b)
-
-				saturation = high > 0 and (high - math_min(r, g, b)) / high or 0
-			end
-
-			return saturation, mod:get(prefix .. "brightness") or STOCK_BRIGHTNESS_STEP
-		end
-	end
-
-	return 1, STOCK_BRIGHTNESS_STEP
-end
-
-local function bake_burn_materials()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		mod:info("burn colours: no file access, shipped defaults used")
-		return
-	end
-
-	local saturation, brightness = burn_bake_profile()
-	local saturation_step = math_floor(saturation * SOUL_SATURATION_STEPS + 0.5)
-	local brightness_step = math_max(MIN_BRIGHTNESS_STEP, math_min(MAX_BRIGHTNESS_STEP, brightness))
-	local value = ffi.new("float[1]")
-
-	for layer = 1, #BURN_LAYERS do
-		local spec = BURN_LAYERS[layer]
-		local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. spec.template, "rb")
-		local template = template_file and template_file:read("*a")
-
-		if template_file then
-			template_file:close()
-		end
-
-		if template and #template == spec.size then
-			for slot = 1, BURN_PALETTE_SLOTS do
-				local hue_step = math_floor((slot - 1) / BURN_PALETTE_SLOTS * SOUL_HUE_STEPS)
-
-				value[0] = 1000 + saturation_step + (hue_step * 16 + brightness_step) / 16384
-
-				local bytes = string.sub(template, 1, spec.offset) .. ffi.string(value, 4) .. string.sub(template, spec.offset + 5)
-				local path = SOUL_PAYLOAD_DIR .. burn_material_file(layer, slot)
-				local existing = lua_io.open(path, "rb")
-				local current = existing and existing:read("*a")
-
-				if existing then
-					existing:close()
-				end
-
-				if current ~= bytes then
-					local out = lua_io.open(path, "wb")
-
-					if out then
-						out:write(bytes)
-						out:close()
-					else
-						mod:info("burn colours: cannot write %s", path)
-					end
-				end
-			end
-		else
-			mod:info("burn colours: template %s missing or wrong size", spec.template)
-		end
-	end
-end
-
-bake_burn_materials()
-local PLASMA_TRAIL_TEMPLATE = "c9a22ea5418d46c4.plasmatemplate"
-local PLASMA_TRAIL_SIZE = 115920
-local PLASMA_TRAIL_OFFSET = 328
-local PLASMA_TRAIL_SLOTS = {
-	{ file = "f0f0000000000901.plasmapal", name = "\31\215\71\224\127\72\39\252" },
-	{ file = "f0f0000000000902.plasmapal", name = "\168\247\196\175\120\157\17\12" },
-	{ file = "f0f0000000000903.plasmapal", name = "\86\31\230\40\154\61\162\12" },
-	{ file = "f0f0000000000904.plasmapal", name = "\165\117\61\166\95\205\86\197" },
-	{ file = "f0f0000000000905.plasmapal", name = "\110\237\38\56\188\247\87\223" },
-	{ file = "f0f0000000000906.plasmapal", name = "\38\87\66\155\225\146\109\126" },
-	{ file = "f0f0000000000907.plasmapal", name = "\53\216\93\40\180\129\196\174" },
-	{ file = "f0f0000000000908.plasmapal", name = "\237\106\184\213\197\127\188\31" },
-	{ file = "f0f0000000000909.plasmapal", name = "\232\168\238\210\232\12\248\55" },
-	{ file = "f0f000000000090a.plasmapal", name = "\156\39\211\204\138\223\81\164" },
-	{ file = "f0f000000000090b.plasmapal", name = "\182\0\199\225\63\100\113\86" },
-	{ file = "f0f000000000090c.plasmapal", name = "\133\11\188\236\167\89\31\188" },
-}
-
-local function bake_plasma_trail()
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local lua_io = lua and lua.io
-
-	if not ffi or not lua_io then
-		return
-	end
-
-	local template_file = lua_io.open(SOUL_PAYLOAD_DIR .. PLASMA_TRAIL_TEMPLATE, "rb")
-	local template = template_file and template_file:read("*a")
-
-	if template_file then
-		template_file:close()
-	end
-
-	if not template or #template ~= PLASMA_TRAIL_SIZE then
-		mod:info("plasma trail palette: template missing or wrong size")
-
-		return
-	end
-
-	local mode = mod:get("plasma_mine_mode")
-	local shown = mod:get("plasma_mine_show") ~= false and (mode == "custom" or mode == "rainbow")
-	local brightness = math_max(1, math_min(15, mod:get("plasma_mine_brightness") or STOCK_BRIGHTNESS_STEP))
-	local saturation_step = 15
-
-	if mode == "custom" then
-		local colour = mod:get("plasma_mine_colour")
-
-		if type(colour) == "table" then
-			local r, g, b = (colour[2] or 0) / 255, (colour[3] or 0) / 255, (colour[4] or 0) / 255
-			local high, low = math_max(r, g, b), math_min(r, g, b)
-
-			saturation_step = math_floor((high > 0 and (high - low) / high or 0) * 15 + 0.5)
-		end
-	end
-
-	for i = 1, #PLASMA_TRAIL_SLOTS do
-		local slot = PLASMA_TRAIL_SLOTS[i]
-		local bytes = template
-
-		if shown then
-			local value = ffi.new("float[1]")
-			local hue = (i - 1) / #PLASMA_TRAIL_SLOTS
-
-			value[0] = 1000 + saturation_step + (math_floor(hue * 1024) % 1024 * 16 + brightness) / 16384
-			bytes = string.sub(template, 1, PLASMA_TRAIL_OFFSET) .. ffi.string(value, 4) .. string.sub(template, PLASMA_TRAIL_OFFSET + 5)
-		end
-
-		local path = SOUL_PAYLOAD_DIR .. slot.file
-		local existing = lua_io.open(path, "rb")
-		local current = existing and existing:read("*a")
-
-		if existing then
-			existing:close()
-		end
-
-		if current ~= bytes then
-			local out = lua_io.open(path, "wb")
-
-			if out then
-				out:write(bytes)
-				out:close()
-			else
-				mod:info("plasma trail palette: cannot write %s", path)
-			end
-		end
-	end
-end
-bake_glow_material()
-bake_glow_palette()
-bake_surface_glow()
-bake_impact_glow()
-bake_plasma_trail()
+local baked = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychromatic_bake")({
+	mod = mod,
+	redirects = REDIRECTS,
+	soul_slots = SOUL_SLOTS,
+	min_brightness = MIN_BRIGHTNESS_STEP,
+	stock_brightness = STOCK_BRIGHTNESS_STEP,
+	max_brightness = MAX_BRIGHTNESS_STEP,
+})
+local SOUL_PAYLOAD_DIR = baked.payload_dir
+local GLOW_SLOTS = baked.glow_slots
+local GLOW_SOURCE_EFFECTS = baked.glow_source_effects
 
 local asset_redirect = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/asset_redirect")
 local REDIRECT_CONTRACT = "polychromatic_jet/live_hsv"
@@ -1851,11 +1072,18 @@ if asset_redirect then
 	end
 end
 
+local _debug_logging = mod:get("debug_logging") == true
 local VARIABLE = "lighting_far_range"
 local STOCK_VALUE = 1000
 local HUE_STEPS = 1024
 local SATURATION_STEPS = 15
-local CODE_DIVISOR = 16384
+local STEPS = {
+	code_divisor = 16384,
+	pending_tint_frames = 30,
+	burn_saturation = 4096,
+	soul_swap_delay_frames = 2,
+	soul_attach_frames = 2,
+}
 local MAX_CLOUDS = 16
 local DIRECT_CLOUD = "beam"
 local DIRECT_EFFECTS = {
@@ -1920,6 +1148,7 @@ local function rgb_to_hsv(r, g, b)
 end
 
 local function cache_settings()
+	_debug_logging = mod:get("debug_logging") == true
 	_soulblaze_enabled = mod:get("soulblaze") ~= false
 	_flamer_burn_enabled = mod:get("flamer_burn") ~= false
 	_skull_burn_enabled = mod:get("skull_burn") ~= false
@@ -1929,7 +1158,7 @@ local function cache_settings()
 			local prefix = set_id .. "_" .. category .. "_"
 
 			profile.show = mod:get(prefix .. "show") ~= false
-			profile.mode = mod:get(prefix .. "mode") or "stock"
+			profile.mode = profile.show and mod:get(prefix .. "mode") or "stock"
 			profile.brightness = mod:get(prefix .. "brightness") or STOCK_BRIGHTNESS_STEP
 
 			local colour = mod:get(prefix .. "colour")
@@ -1974,7 +1203,7 @@ local function encoded_value(profile, t)
 		brightness_step = MAX_BRIGHTNESS_STEP
 	end
 
-	return STOCK_VALUE + saturation_step + (hue_step * 16 + brightness_step) / CODE_DIVISOR
+	return STOCK_VALUE + saturation_step + (hue_step * 16 + brightness_step) / STEPS.code_divisor
 end
 
 local _gameplay_running = false
@@ -2229,7 +1458,6 @@ local function apply_flash(world, particle_id, flash, profile)
 	return written > 0
 end
 
-local PENDING_TINT_FRAMES = 30
 local _pending_tints = {}
 local _effect_stats = rawget(_G, "__polychromatic_effect_stats") or {}
 
@@ -2285,7 +1513,7 @@ local function retry_pending_tints()
 		if entry.apply(entry.world, entry.particle_id, entry.first, entry.second, entry.third) then
 			entry.stat.late = entry.stat.late + 1
 			table.remove(_pending_tints, i)
-		elseif entry.frames >= PENDING_TINT_FRAMES then
+		elseif entry.frames >= STEPS.pending_tint_frames then
 			entry.stat.expired = entry.stat.expired + 1
 			table.remove(_pending_tints, i)
 		end
@@ -3021,25 +2249,25 @@ mod:hook_safe(CLASS.FlamerGasEffects, "_update_effects", function(self, dt, t)
 	end
 end)
 
-local AilmentSettings = require("scripts/settings/ailments/ailment_settings")
-local Ailment = require("scripts/utilities/ailment")
-local SOULBLAZE_BUFF = "warp_fire"
-local SOULBLAZE_AILMENT = AilmentSettings.effects.warpfire
-local FLAMER_BURN_BUFF = "flamer_assault"
-local FLAMER_BURN_AILMENT = AilmentSettings.effects.burning
+local BURN_IDS = {
+	soulblaze_buff = "warp_fire",
+	ailment_templates = require("scripts/settings/ailments/ailment_settings").effect_templates,
+	soulblaze_ailment = require("scripts/settings/ailments/ailment_settings").effects.warpfire,
+	flamer_buff = "flamer_assault",
+	flamer_ailment = require("scripts/settings/ailments/ailment_settings").effects.burning,
+}
 local BURN_TIMING_VARIABLE = "offset_time_duration"
 local BURN_UNPATCHED_BREED_PATTERNS = { "daemonhost" }
 local BURN_HUE_STEPS = 256
-local BURN_SATURATION_STEP = 4096
 local BURN_CODE_SCALE = 4
 local _burn_starts = setmetatable({}, { __mode = "k" })
 
-mod:hook_safe(Ailment, "play_ailment_effect_template", function(unit, ailment_effect, optional_include_children, optional_custom_duration, optional_custom_offset_time)
-	if (ailment_effect ~= SOULBLAZE_AILMENT and ailment_effect ~= FLAMER_BURN_AILMENT) or not unit or not Unit.alive(unit) then
+mod:hook_safe(require("scripts/utilities/ailment"), "play_ailment_effect_template", function(unit, ailment_effect, optional_include_children, optional_custom_duration, optional_custom_offset_time)
+	if (ailment_effect ~= BURN_IDS.soulblaze_ailment and ailment_effect ~= BURN_IDS.flamer_ailment) or not unit or not Unit.alive(unit) then
 		return
 	end
 
-	local template = AilmentSettings.effect_templates[ailment_effect]
+	local template = BURN_IDS.ailment_templates[ailment_effect]
 
 	_burn_starts[unit] = {
 		start = World.time(Unit.world(unit)),
@@ -3081,7 +2309,7 @@ local function burn_code(profile, t)
 	local saturation_step = math_floor(saturation * SATURATION_STEPS + 0.5)
 	local brightness_step = math_max(MIN_BRIGHTNESS_STEP, math_min(MAX_BRIGHTNESS_STEP, math_floor(profile.brightness + 0.5)))
 
-	return saturation_step * BURN_SATURATION_STEP + hue_step * 16 + brightness_step
+	return saturation_step * STEPS.burn_saturation + hue_step * 16 + brightness_step
 end
 
 local SOULBLAZE_FLAME = "content/fx/particles/enemies/buff_warpfire"
@@ -3144,10 +2372,8 @@ local function soul_slot_for(profile, t)
 	return slot.usable and slot or nil
 end
 
-local SOUL_SWAP_DELAY_FRAMES = 2
 local _pending_soul_swaps = {}
 local _pending_soul_attach = {}
-local SOUL_ATTACH_FRAMES = 2
 
 local function swap_soulblaze_flame(extension, unit, profile, t)
 	if not soul_slots_ready() then
@@ -3157,7 +2383,7 @@ local function swap_soulblaze_flame(extension, unit, profile, t)
 	local slot = soul_slot_for(profile, t)
 
 	if slot then
-		_pending_soul_swaps[#_pending_soul_swaps + 1] = { extension = extension, unit = unit, slot = slot, wait = SOUL_SWAP_DELAY_FRAMES }
+		_pending_soul_swaps[#_pending_soul_swaps + 1] = { extension = extension, unit = unit, slot = slot, wait = STEPS.soul_swap_delay_frames }
 	end
 end
 
@@ -3187,7 +2413,7 @@ local function apply_soul_swap(entry)
 			World.set_particles_surface_effect(world, particle_id, unit, nil, nil, true)
 
 			data.particle_id = particle_id
-			_pending_soul_attach[#_pending_soul_attach + 1] = { world = world, unit = unit, particle_id = particle_id, wait = SOUL_ATTACH_FRAMES }
+			_pending_soul_attach[#_pending_soul_attach + 1] = { world = world, unit = unit, particle_id = particle_id, wait = STEPS.soul_attach_frames }
 		end
 	end
 end
@@ -3283,7 +2509,7 @@ local function burn_set_for(owner_unit)
 end
 
 local function flamer_burn_profile_for(template_name, owner_unit)
-	if template_name ~= FLAMER_BURN_BUFF then
+	if template_name ~= BURN_IDS.flamer_buff then
 		return nil
 	end
 
@@ -3372,7 +2598,7 @@ mod:hook(CLASS.MinionBuffExtension, "_on_add_buff", function(func, self, buff_in
 	func(self, buff_instance)
 	flamer_burn_added(self, buff_instance)
 
-	if not _soulblaze_enabled or buff_instance:template().name ~= SOULBLAZE_BUFF then
+	if not _soulblaze_enabled or buff_instance:template().name ~= BURN_IDS.soulblaze_buff then
 		return
 	end
 
@@ -3509,13 +2735,17 @@ mod.on_all_mods_loaded = function()
 		if redirect_served(state) then
 			served = served + 1
 		else
-			mod:info("redirect %s: %s", REDIRECTS[i].stock, state)
+			if _debug_logging then
+				mod:info("redirect %s: %s", REDIRECTS[i].stock, state)
+			end
 		end
 
 		restart = restart or state == "restart_required"
 	end
 
-	mod:info("redirects served: %d of %d", served, #_redirect_handles)
+	if _debug_logging then
+		mod:info("redirects served: %d of %d", served, #_redirect_handles)
+	end
 
 	local burn_entries, burn_served = 0, 0
 
@@ -3533,7 +2763,9 @@ mod.on_all_mods_loaded = function()
 
 	_burn_patch_served = burn_entries > 0 and burn_served == burn_entries
 
-	mod:info("burn shader patch served: %s", tostring(_burn_patch_served))
+	if _debug_logging then
+		mod:info("burn shader patch served: %s", tostring(_burn_patch_served))
+	end
 
 	local soul_usable = 0
 
@@ -3547,7 +2779,9 @@ mod.on_all_mods_loaded = function()
 		end
 	end
 
-	mod:info("soulblaze flame slots usable: %d of %d", soul_usable, #SOUL_SLOTS)
+	if _debug_logging then
+		mod:info("soulblaze flame slots usable: %d of %d", soul_usable, #SOUL_SLOTS)
+	end
 
 	local glow_usable, glow_total = 0, 0
 
@@ -3573,7 +2807,9 @@ mod.on_all_mods_loaded = function()
 		end
 	end
 
-	mod:info("las glow slots usable: %d of %d", glow_usable, glow_total)
+	if _debug_logging then
+		mod:info("las glow slots usable: %d of %d", glow_usable, glow_total)
+	end
 
 	if in_level then
 		load_soul_slots()
@@ -3586,209 +2822,63 @@ mod.on_all_mods_loaded = function()
 	end
 end
 
-local function native_stats(instance)
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ffi = lua and lua.ffi
-	local cjson = rawget(_G, "cjson")
-	local native = instance and instance.native
+local diagnostics = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychromatic_debug")({
+	mod = mod,
+	redirects = REDIRECTS,
+	payload_dir = SOUL_PAYLOAD_DIR,
+	soul_slots = SOUL_SLOTS,
+	glow_slots = GLOW_SLOTS,
+	extended_packages = EXTENDED_PACKAGES,
+	sets = SETS,
+	asset_redirect = asset_redirect,
+	redirect_handles = _redirect_handles,
+	redirect_served = redirect_served,
+	profile_for = profile_for,
+	redshift_owns_sniper = redshift_owns_sniper,
+	effect_stats = _effect_stats,
+	soul_load_ids = _soul_load_ids,
+	glow_load_ids = _glow_load_ids,
+	extended_load_ids = _extended_load_ids,
+	flags = function()
+		return {
+			gameplay_running = _gameplay_running,
+			burn_patch_served = _burn_patch_served,
+			soulblaze = _soulblaze_enabled,
+			flamer_burn = _flamer_burn_enabled,
+			skull_burn = _skull_burn_enabled,
+			debug_logging = _debug_logging,
+		}
+	end,
+})
 
-	if not ffi or not cjson or not native then
-		return nil
+mod:hook_safe(CLASS.PackageManager, "load", function(self, package_name, reference_name, callback, prioritize, use_resident_loading)
+	if _debug_logging then
+		diagnostics.package_loaded(package_name, reference_name, prioritize, use_resident_loading)
 	end
+end)
 
-	local cap = 262144
-	local out = ffi.new("char[?]", cap)
+mod:command("poly_check", mod:localize("poly_check_description"), function()
+	diagnostics.check_setup(false)
+end)
 
-	if native.AssetRedirect_Stats(out, cap) ~= 1 then
-		return nil
-	end
+local report_load = mod.on_all_mods_loaded
 
-	local ok, stats = pcall(cjson.decode, ffi.string(out))
+mod.on_all_mods_loaded = function()
+	report_load()
 
-	return ok and type(stats) == "table" and stats or nil
-end
-
-local function stats_by_stock(stats)
-	local by_stock = {}
-	local entries = stats and stats.entries
-
-	if type(entries) ~= "table" then
-		return by_stock
-	end
-
-	for _, entry in ipairs(entries) do
-		if type(entry.key) == "string" then
-			local key = string.gsub(string.lower(entry.key), "\\", "/")
-
-			for i = 1, #REDIRECTS do
-				local stock = REDIRECTS[i].stock
-
-				if string.sub(key, -#stock) == stock then
-					by_stock[stock] = entry
-				end
-			end
-		end
-	end
-
-	return by_stock
-end
-
-local function package_state(load_ids, package)
-	local id = load_ids[package]
-
-	if not id then
-		return "not requested"
-	end
-
-	return Managers.package:has_loaded_id(id) and "loaded" or "loading"
-end
-
-local function check_setup()
-	local instance = rawget(_G, "__asset_redirect_instance")
-	local lua = rawget(_G, "Mods") and Mods.lua
-	local ui = Managers.ui
-	local sub_state = ui and ui:get_current_sub_state_name()
-
-	if sub_state == nil or sub_state == "" then
-		sub_state = "none"
-	end
-
-	mod:info("check: Polychromatic %s, sub state %s, gameplay gate %s, file access %s", tostring(mod.version), tostring(sub_state), tostring(_gameplay_running), tostring(lua ~= nil and lua.ffi ~= nil and lua.io ~= nil))
-
-	if not instance then
-		mod:info("check: asset redirect library not present")
-	else
-		local lib_version = asset_redirect and asset_redirect.version() or "none"
-
-		mod:info("check: asset redirect library %s, dll %s, native %s, late %s, newer %s, error %s", tostring(lib_version), tostring(instance.dll_version), tostring(instance.native_state), tostring(instance.late), tostring(instance.newer_available), tostring(instance.native_error))
-	end
-
-	local stats = native_stats(instance)
-	local by_stock = stats_by_stock(stats)
-
-	if stats then
-		mod:info("check: dll hooks installed %s, schema %s, dll entries %d", tostring(stats.installed), tostring(stats.schema), type(stats.entries) == "table" and #stats.entries or -1)
-
-		if type(stats.counters) == "table" then
-			for name, value in pairs(stats.counters) do
-				if type(value) == "table" then
-					local parts = {}
-
-					for api, count in pairs(value) do
-						parts[#parts + 1] = string.format("%s %s", tostring(api), tostring(count))
-					end
-
-					table.sort(parts)
-					value = table.concat(parts, ", ")
-				end
-
-				mod:info("check: dll counter %s: %s", tostring(name), tostring(value))
-			end
-		end
-	else
-		mod:info("check: dll stats unavailable")
-	end
-
-	local counts = {}
-	local served, total = 0, #_redirect_handles
-
-	for i = 1, total do
-		local entry = REDIRECTS[i]
-		local handle = _redirect_handles[i]
-		local state = asset_redirect.state(handle)
-		local owner = asset_redirect.winner(handle)
-		local dll = by_stock[entry.stock]
-
-		counts[state] = (counts[state] or 0) + 1
-
-		if redirect_served(state) then
-			served = served + 1
-		end
-
-		mod:info("check: redirect %s -> %s: %s, winner %s, opens %s, finds %s, attrs %s, reason %s", entry.stock, entry.file, state, tostring(owner), tostring(dll and dll.opens), tostring(dll and dll.finds), tostring(dll and dll.attrs), tostring(handle and handle.reason))
-	end
-
-	local summary = {}
-
-	for state, count in pairs(counts) do
-		summary[#summary + 1] = state .. " " .. count
-	end
-
-	table.sort(summary)
-	mod:info("check: redirects served %d of %d (%s)", served, total, table.concat(summary, ", "))
-	mod:info("check: burn shader patch served %s, soulblaze %s, flamer burn %s, skull burn %s, redshift owns sniper %s", tostring(_burn_patch_served), tostring(_soulblaze_enabled), tostring(_flamer_burn_enabled), tostring(_skull_burn_enabled), tostring(redshift_owns_sniper()))
-
-	if Managers.package then
-		for i = 1, #SOUL_SLOTS do
-			local slot = SOUL_SLOTS[i]
-
-			mod:info("check: soul slot %s usable %s, package %s", slot.package, tostring(slot.usable), package_state(_soul_load_ids, slot.package))
-		end
-
-		for kind, list in pairs(GLOW_SLOTS) do
-			for i = 1, #list do
-				local slot = list[i]
-
-				mod:info("check: glow slot %s %s usable %s, package %s", kind, slot.package, tostring(slot.usable), package_state(_glow_load_ids, slot.package))
-			end
-		end
-
-		for i = 1, #EXTENDED_PACKAGES do
-			local entry = EXTENDED_PACKAGES[i]
-
-			mod:info("check: extended package %s: %s", entry.package, package_state(_extended_load_ids, entry.package))
-		end
-	end
-
-	for i = 1, #SETS do
-		local set = SETS[i]
-
-		for j = 1, #set.categories do
-			local profile = profile_for(set.id, set.categories[j])
-
-			mod:info("check: setting %s %s: show %s, mode %s, hue %.3f, saturation %.3f, brightness %s", set.id, set.categories[j], tostring(profile.show), tostring(profile.mode), profile.hue or 0, profile.saturation or 0, tostring(profile.brightness))
-		end
-	end
-
-	local effects = {}
-
-	for effect_name in pairs(_effect_stats) do
-		effects[#effects + 1] = effect_name
-	end
-
-	table.sort(effects)
-
-	for i = 1, #effects do
-		local stat = _effect_stats[effects[i]]
-
-		mod:info("check: effect %s [%s %s]: seen %d, applied %d, deferred %d, late %d, expired %d, substituted %d", effects[i], tostring(stat.set), tostring(stat.category), stat.seen, stat.applied, stat.deferred, stat.late, stat.expired, stat.substituted)
-	end
-
-	local dmf = get_mod("DMF")
-	local mods = dmf and dmf.mods
-
-	if type(mods) == "table" then
-		local names = {}
-
-		for name, other in pairs(mods) do
-			local enabled = type(other) == "table" and other.is_enabled and other:is_enabled()
-
-			names[#names + 1] = string.format("%s%s", name, enabled and "" or " (off)")
-		end
-
-		table.sort(names)
-		mod:info("check: mods %s", table.concat(names, ", "))
-	end
-
-	local native_ok = instance ~= nil and instance.native_state == "ready"
-
-	mod:echo("Polychromatic %s: redirect library %s, redirects %d of %d served, %d effects seen. Details are in the console log.", tostring(mod.version), native_ok and "loaded" or "NOT loaded", served, total, #effects)
-
-	if not native_ok then
-		mod:echo("The asset-redirect.dll in Polychromatic/bin did not load (%s), so only las beams can be recoloured. Check it exists and was not quarantined by antivirus.", tostring(instance and instance.native_error))
-	elseif served < total then
-		mod:echo("%d redirects were refused, most likely a game update changed the files they replace.", total - served)
+	if _debug_logging then
+		diagnostics.check_setup(true, true)
 	end
 end
 
-mod:command("poly_check", mod:localize("poly_check_description"), check_setup)
+local apply_setting = mod.on_setting_changed
+
+mod.on_setting_changed = function(setting_id)
+	local was_logging = _debug_logging
+
+	apply_setting(setting_id)
+
+	if setting_id == "debug_logging" and _debug_logging and not was_logging then
+		diagnostics.check_setup(true, true)
+	end
+end

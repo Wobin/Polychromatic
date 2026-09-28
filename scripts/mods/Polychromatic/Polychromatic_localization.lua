@@ -22,6 +22,8 @@ local localization = {
 	mod_name = { en = "Polychromatic" },
 	mod_description = { en = "Recolours or hides fire and las effects, separately for your own and your team's fire, plus the enemy sniper laser." },
 	restart_required = { en = "Polychromatic: flame files changed while the game was running. Restart the game for them to take effect." },
+	debug_logging = { en = "Debug logging" },
+	debug_logging_description = { en = "Writes Polychromatic's setup details to the console log: which patched files are served at launch, a full /poly_check report at launch, and a line each time a patched effect package loads. Turning it on also writes a /poly_check report straight away (once per game session); restart the game to capture the launch details too." },
 	poly_check_description = { en = "Polychromatic: report the setup state to the console log for troubleshooting." },
 	flamer_burn = { en = "Burning enemies follow these settings" },
 	skull_burn = { en = "Burning enemies follow these settings" },
