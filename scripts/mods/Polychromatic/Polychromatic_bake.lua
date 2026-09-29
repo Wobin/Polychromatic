@@ -64,7 +64,7 @@ return function(context)
 
 	local IMPACT_GLOW_TEMPLATE_FILE = "7082301abe176951.impactglowtemplate"
 	local IMPACT_GLOW_FILE = "7082301abe176951.impactglow"
-	local IMPACT_GLOW_SIZE = 371985
+	local IMPACT_GLOW_SIZE = 374957
 	local IMPACT_GLOW_OFFSET = 244
 
 	local function bake_impact_glow()
@@ -201,7 +201,7 @@ return function(context)
 	}
 	local GLOW_IMPACT_TEMPLATE = "7082301abe176951.impactglowtemplate"
 	local GLOW_MUZZLE_TEMPLATE = "0937ecdd02b49a51.glowtemplate"
-	local GLOW_IMPACT_SIZE, GLOW_IMPACT_OFFSET = 371985, 244
+	local GLOW_IMPACT_SIZE, GLOW_IMPACT_OFFSET = 374957, 244
 	local GLOW_MUZZLE_SIZE, GLOW_MUZZLE_OFFSET = 308, 264
 
 	local function glow_hsv_rgb(h, s, v)
@@ -313,8 +313,8 @@ return function(context)
 	end
 
 	local SURFACE_BAKED = {
-		{ template = "f0f0000000000101.surftemplate", file = "f0f0000000000101.glowpal", size = 388884, offset = 244 },
-		{ template = "f0f0000000000102.surftemplate", file = "f0f0000000000102.glowpal", size = 372033, offset = 244 },
+		{ template = "f0f0000000000101.surftemplate", file = "f0f0000000000101.glowpal", size = 393660, offset = 244 },
+		{ template = "f0f0000000000102.surftemplate", file = "f0f0000000000102.glowpal", size = 374989, offset = 244 },
 	}
 
 	local function bake_surface_glow()
@@ -517,7 +517,7 @@ return function(context)
 		{
 			stock = "data/bc/bc95c93681c9f0f7",
 			file = "bc95c93681c9f0f7.livehsv",
-			sha256 = "2b6f58f49b2a07452e2593abdd1c2e92c94c2cb1bdee7f80dd20b7bb1e0eb684",
+			sha256 = "b7d689c5159cca7fb29b97ab4e968dc2c73907d091af3feb2728ba303a065984",
 		},
 		{
 			stock = "data/zz/f0f0000000000101",
@@ -707,7 +707,7 @@ return function(context)
 
 	bake_burn_materials()
 	local PLASMA_TRAIL_TEMPLATE = "c9a22ea5418d46c4.plasmatemplate"
-	local PLASMA_TRAIL_SIZE = 115920
+	local PLASMA_TRAIL_SIZE = 116416
 	local PLASMA_TRAIL_OFFSET = 328
 	local PLASMA_TRAIL_SLOTS = {
 		{ file = "f0f0000000000901.plasmapal", name = "\31\215\71\224\127\72\39\252" },

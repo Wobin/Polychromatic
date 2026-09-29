@@ -1,7 +1,7 @@
 # Polychromatic: how each effect gets its colour
 
 Every recolour in the mod is one of seven mechanisms. This document says which mechanism each effect
-family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.0.5
+family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.0.6
 (2026-09-27). It lives in the repository under `docs/` and is excluded from the release zip.
 
 Two engine facts decide the mechanism for every effect:
@@ -366,6 +366,13 @@ non-BypassIO path rejected the short read.
 Every replacement file is a redirect registered with the Asset Redirect library, which records the
 **stock** file's sha256. After a game update a changed stock file disables that redirect, so the
 effect falls back to stock instead of serving a stale patch.
+
+The sha256 check cannot cover generated materials (they have no stock file) or unchanged bundles whose
+added records point at them. The 2026-09-29 patch recompiled every material from format 61 to 62, and
+a format-61 material served that way crashed the engine with an access violation. So at load the mod
+reads the version tag of one stock material it never redirects, and if the tag differs from the format
+the payload was built for, it registers nothing at all and says so in chat. The payload is built for
+format 62; the tools read both, and every stock material round-trips byte-identically.
 
 | suffix | what it is |
 |---|---|

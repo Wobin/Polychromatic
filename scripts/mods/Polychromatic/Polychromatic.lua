@@ -22,17 +22,17 @@ local REDIRECTS = {
 	{
 		stock = "data/80/809f0435f2b74af3",
 		file = "809f0435f2b74af3.livehsv",
-		sha256 = "6c281be550d37d8ba3cb765199619bbaf81eb0d0365251a21dd9835e1621dfaf",
+		sha256 = "2b45ac00f235a83c3b60e94bad023b22575145c1af0613f535cfcf3068e555ee",
 	},
 	{
 		stock = "data/85/85d24accc98ef272",
 		file = "85d24accc98ef272.livehsv2",
-		sha256 = "1cf95fd9e9ac6afa6370849696d67a4cc602f369e0c6c8310409f18479c46ece",
+		sha256 = "1ed35c422ade46b3feb429a7e8607930246e18e5c4084eec6daf13a8b451b1a3",
 	},
 	{
 		stock = "data/03/03f68803faf03b51",
 		file = "03f68803faf03b51.livehsv",
-		sha256 = "73943bfb02628b95f6e822cddfea241e87feaa7849080f157952a012cb7efce3",
+		sha256 = "60eafe2a5921d495b974f794467ccb17037d17172b60d63b0cac7c9a3abeaa0e",
 	},
 	{
 		stock = "4e6163c275b96d00",
@@ -47,17 +47,17 @@ local REDIRECTS = {
 	{
 		stock = "data/53/533194479779e27b",
 		file = "533194479779e27b.livehsv",
-		sha256 = "2a0b46efa9255d0912e32b1467dd9d2a70b6cbfc1ac0c17eb9b9228b33f8b03f",
+		sha256 = "aca054e4d0ff6be20a0ffc13c4c60b80fbd25d99a0af20547ad7a340e0136503",
 	},
 	{
 		stock = "data/ae/ae9963d8c98fe6b6",
 		file = "ae9963d8c98fe6b6.livehsv",
-		sha256 = "16abe7f4287fc08708fc2d87d52eee1c1a1909a361628c89fcdb8dc0f5637e1d",
+		sha256 = "542881aa3fe75bdc20c2d3a6a77da28c34d9991d4ee51e8d89266e5adec74769",
 	},
 	{
 		stock = "data/18/186941c392bb5d7b",
 		file = "186941c392bb5d7b.livehsv",
-		sha256 = "63e9c6eea5bee9497a80578ad3f08015c77a1b910083925602f2d6c21a804a2f",
+		sha256 = "ab40b9991acdad19d41527ad2dfba869521893f8541c09f59276f707d0f9ce80",
 	},
 	{
 		stock = "e605c5550cf3088b",
@@ -82,22 +82,22 @@ local REDIRECTS = {
 	{
 		stock = "data/a4/a40299ecf616514c",
 		file = "a40299ecf616514c.livehsv",
-		sha256 = "a5c007c5b0af581b834d62b5053237a56888da2d575666461fefc77ab9665e32",
+		sha256 = "95c3e1172e77958d3ce823f3528ef8f9cc8d8ad375a8dc176826613725bbc95e",
 	},
 	{
 		stock = "data/15/150a4ba090c95379",
 		file = "5b86a311c0ac5cf0.livehsv",
-		sha256 = "b0d07a50a284eef05e15a03f1425008d1cf287308723464ee6059949a8bdd7cf",
+		sha256 = "c70c8646803d8adcbf7e9620a8393ed763de8f98dc78cfd56234de33f5358cd7",
 	},
 	{
 		stock = "data/19/19bcec6ae1991184",
 		file = "3586b12003ab11fc.livehsv",
-		sha256 = "7d64c7f1e068f904606dcba5bd1579b22789964ed0c83cda0575e6d4b25047aa",
+		sha256 = "3bfa6308dfc6cd34dd74000f427b7967391636c71092cc7a0e043e3912dcc8b7",
 	},
 	{
 		stock = "data/6b/6bcf952c725f6a2f",
 		file = "6bcf952c725f6a2f.livehsv",
-		sha256 = "9df2110d0846b64911ed248161871fcb24c4ffab73ea2fcb90bc3338a6d64766",
+		sha256 = "75d438d8b9a5cd4c0f91c74f51a6bf553482b4ab3fc931fa22bd7adb66b217a0",
 	},
 	{
 		stock = "28d55df9efb7f8e5",
@@ -107,17 +107,17 @@ local REDIRECTS = {
 	{
 		stock = "30ebeee18093c079",
 		file = "30ebeee18093c079.pyro",
-		sha256 = "53fd3e19870d70e18377151233f3aa3a141ead0339c55ad4dd83b4625fa5e531",
+		sha256 = "bb54dffaa14cb6aff4fd777645e6847b8f338d9e3304f67646b2ca082f81e7be",
 	},
 	{
 		stock = "data/bb/bb79ba7a5b92d132",
 		file = "bb79ba7a5b92d132.livehsv",
-		sha256 = "7e072a559e0c2d77f762c12bde0214521e925d235e2ae17c75ff7605f9a6b35c",
+		sha256 = "0791ebee80d406e27e850c8974b0e5c7d4c4453d421de9cda8b3af52ea7e5509",
 	},
 	{
 		stock = "data/af/af395bb3270f316d",
 		file = "af395bb3270f316d.livehsv",
-		sha256 = "d8830c0a00bf2aef2fdaa60ca4f54db7f623428d981f67a02fa81e8953ce42fd",
+		sha256 = "f347c86781249ebbcf2b793c75f474ee55789d5c3340776c24efd2598ffd6ed7",
 	},
 	{
 		stock = "97498862fb42b0d6",
@@ -135,37 +135,37 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/00/0028686adad0c743",
 		file = "0028686adad0c743.livehsv",
-		sha256 = "5b78d0b55b7b120b2041c9808e25861e0d90cf386159e086a71c156bdf9a3d36",
+		sha256 = "9718ee668c306c2a0ecad99fa4a7f904af6ee52b478cec288532e02f0c4a2840",
 	},
 	{
 		stock = "data/3c/3c5cb0cf7d5047c8",
 		file = "3c5cb0cf7d5047c8.livehsv",
-		sha256 = "eec7014da4cbfecc133988911247e95aa89d5562f121e1035d27cd0a5d5e1bd4",
+		sha256 = "5d984ef47001416ffe70b0fcd4d8f06500ec9177215e093d5c82f1142122245d",
 	},
 	{
 		stock = "data/61/61446d60d543f9db",
 		file = "61446d60d543f9db.livehsv",
-		sha256 = "6c1586750d616fca428c02fb3da8eccef763f56b76682c49cab0573aa29c4b7e",
+		sha256 = "e4d4083ca343bb837ea02b49a75b5338b0cd126a8a2aafa7e873863fec8f91fd",
 	},
 	{
 		stock = "data/70/7082301abe176951",
 		file = "7082301abe176951.livehsv",
-		sha256 = "85c23556b3b3ea98383c7c7b2077e65ace5049d7c8433fbb7f28d3753097ea9e",
+		sha256 = "889eee0183a9676c837c60b7248e070c506a983b5ac80c75152ec2c37045fed6",
 	},
 	{
 		stock = "data/94/943d1b280637fc01",
 		file = "943d1b280637fc01.livehsv",
-		sha256 = "ccd40438d6778b69f25519d2597d78ffed1472bcaee077b9d66de73cdc5bd5fa",
+		sha256 = "46b846d2261aa4dd0b68cb6c3de9ca5d57a8c7f6fb011d3eee740559bce08fcc",
 	},
 	{
 		stock = "data/95/953a43ee8c53c708",
 		file = "953a43ee8c53c708.livehsv",
-		sha256 = "032d8d1cb599b4aa3d15b937b828cc76123c128beb0b44bb6fea23c1075ed7e6",
+		sha256 = "f86ec47dc0061cb87bee02e4dab1c9e351ae6ff7fd40d86b0c763b06802ace3a",
 	},
 	{
 		stock = "data/ae/aeac9afc8d4df9bb",
 		file = "99ff58cc04799e02.livehsv",
-		sha256 = "ff37a1f97b5fe527bc936cf757f027528b5ed5df7f77d58716a842a3bd2d1ede",
+		sha256 = "d373c16beb557c909492a710296a1375ff644913b3235718c7e49f23559b36c0",
 	},
 	{
 		stock = "5dc0d564aae47b93",
@@ -175,97 +175,97 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/70/70874be43492180f",
 		file = "70874be43492180f.livehsv",
-		sha256 = "35f8e92db9a6ce4c4164ccbc9d658d89aece923193ad30ab3795a7287faba4a8",
+		sha256 = "985afcbb39fd1c4b79c70ef085f0068519e3e892be199b5f2026cf35c80b7c97",
 	},
 	{
 		stock = "data/ac/acfde9cb5522d20e",
 		file = "5b86a311c0ac5cf0.livehsv",
-		sha256 = "0aebeb964c5b7d10012658a336a210319e0a6762a384272129445472064b21f7",
+		sha256 = "2eb22f231425289e91d021a6b47f3137d1fac055e902d26d52cafd54d9199513",
 	},
 	{
 		stock = "data/b6/b6fb4f31823ffdae",
 		file = "2ac35fee97857b92.livehsv",
-		sha256 = "4810e18dccca242d6eb319ab7ae7dc9c6db0c52296248d6fe7e9b7498e9f0343",
+		sha256 = "818ecdcde59c08b56d13054c6c20f76edd87b227b37bf2589000698543be59fe",
 	},
 	{
 		stock = "data/09/0937ecdd02b49a51",
 		file = "0937ecdd02b49a51.glowmat",
-		sha256 = "59608657d9d932738eedb136213f362195721fb0ea846a1ea774e05e48ac5081",
+		sha256 = "d1bc872f037612863178360e84382b8600ab4323e4636fa6917e0606f21d38cc",
 	},
 	{
 		stock = "data/38/389635690311f44d",
 		file = "389635690311f44d.livehsv",
-		sha256 = "141a4baa5ac66884ecaa51fa23e3b1684c371fa254159b042dea261109cfee14",
+		sha256 = "a4c31ec63a06de2541efa550296303dd9e2e06b70ca070f5896194f4f303cdfe",
 	},
 	{
 		stock = "data/35/35978c7053a8aafc",
 		file = "35978c7053a8aafc.livehsv",
-		sha256 = "b20f8741c87e2b8eb472708ce4fc77df109cdbf9a4851f03139ee35a49e9e12e",
+		sha256 = "be4f5777f2e9e368383d14898e623f813e473476e1382f65a6f893a311ed7544",
 	},
 	{
 		stock = "data/70/707cdbdd606c30cd",
 		file = "ace5d2aa548b1ba8.livehsv",
-		sha256 = "547e45bbcbce33cacb12e99dbe03153031d9e0380da063af5ae934a8669d9b03",
+		sha256 = "bc2759865a3bedbf83e166df051b8795b84fdfef078dd9b1490ebe18d01defff",
 	},
 	{
 		stock = "data/9b/9b10dd963027a9b2",
 		file = "7082301abe176951.impactglow",
-		sha256 = "746fbe232869b9c6a714350854dfb67c919fccb7a93b215471614a996ca69c54",
+		sha256 = "976ef83537062a6b74854f359abd0882d249e3bc7c203bf07a81ed0d91b6f09b",
 	},
 	{
 		stock = "data/4f/4f3403e5378fc65d",
 		file = "4f3403e5378fc65d.parentswap",
-		sha256 = "5de1cb0c229de5e9eb0280565b137996b29816b4cd3b3775327f810e9dc3a443",
+		sha256 = "a1cab756e0f73c0a3a1ce4347b2ea77c1f01f518cee4c2236be6fdf4bbb58da0",
 	},
 	{
 		stock = "data/d4/d436973b399d0f0f",
 		file = "af6345509d7beaa3.parentswap",
-		sha256 = "64e8c4ac13eedea62c49eac8ee7c81fa990b30c85982ba20b8a72b9607091585",
+		sha256 = "7d61ad6389b0f1098f3bf79584bc889d37384c9fa08516365622b852c9e14fde",
 	},
 	{
 		stock = "data/50/501fc3a18853b87e",
 		file = "27c0cb428a261dc8.livehsv",
-		sha256 = "7fc17b651afbd5063094cf7f13960c14318ecd8b273068bced66281aa1a8ed85",
+		sha256 = "b9984ae8c39aaa4fdc16f50f14d75666b7576301ea97882419c453a4d2861ce9",
 	},
 	{
 		stock = "data/a0/a05cac4ba1830c52",
 		file = "a05cac4ba1830c52.livehsv",
-		sha256 = "963e06a9c87b66dfe3687832796db3cc8a9cd1caf1dfea1c3ac5666c2089cb90",
+		sha256 = "98fe876900735c06df7bef2822e5dc3e35efedcaf234edfdc484ecedeb03efdb",
 	},
 	{
 		stock = "data/b6/b674173297823523",
 		file = "b674173297823523.livehsv",
-		sha256 = "23ab01eef04afa80f293a5a22205872fbec737671594ba21ec4d672ecc0b1969",
+		sha256 = "fd245d6d4fd71cef20675318ee7e1db5c7d38dbbfdcf245936e45266c3755bc1",
 	},
 	{
 		stock = "data/c7/c77100b7e03c017e",
 		file = "c77100b7e03c017e.livehsv",
-		sha256 = "9ae9d5c99d88e44d3a8e593f46a5eaa3d5248e884663d49527d90b644d209893",
+		sha256 = "de1c595f88ad89f9803f23c113a922e797191ccf8adc2bdbea55c8e1a00445fc",
 	},
 	{
 		stock = "data/c9/c9a22ea5418d46c4",
 		file = "c9a22ea5418d46c4.livehsv",
-		sha256 = "7d972e76c5a118be6e353c29cab97b7711a03cdd2ed1e912b434ab7308fd832a",
+		sha256 = "2a67e10161ebb6f212a27f8bb571a43aebfd250094b0c598db7bfc9e0554e951",
 	},
 	{
 		stock = "data/d5/d59ba29afc0927bb",
 		file = "d59ba29afc0927bb.livehsv",
-		sha256 = "83596cff811f1bb46b8e3230db238d6293da0502f4e116ed7ddb1964d4626bc6",
+		sha256 = "934380520edb2bae95849c5c7a608caa8d60094e27732cb2b266e24f2d5bd490",
 	},
 	{
 		stock = "data/eb/eb6d4860ae6b197a",
 		file = "eb6d4860ae6b197a.livehsv",
-		sha256 = "4760b81f2d90c0655d0e6f4b965a49e701ad8a3cf533f90909c9ce2f462b698e",
+		sha256 = "74da2f36f548d0f2bc1d2e2cc858788ceffbd6b27eabc56d19dad8ac9b103e3e",
 	},
 	{
 		stock = "data/ee/eed5a626643585ec",
 		file = "eed5a626643585ec.livehsv",
-		sha256 = "d46d3ff0e440cac95291ee2db4350cc368cb89832a845865330c1c6f8a9e3b86",
+		sha256 = "8a934e520a25b7f02a5eb9d940f8f013b70af6f94830cac6e13561d01b4f7c1e",
 	},
 	{
 		stock = "data/f8/f88272fabfa9807e",
 		file = "f88272fabfa9807e.livehsv",
-		sha256 = "1d3f5f7cec813d6b1a16782093bc2507ee7515eea22fb7acb5450afb6b2680de",
+		sha256 = "d362cc3af95b5eb991aa3e99f0d35b179f22a97057fd19a0727a77c48fe1f422",
 	},
 	{
 		stock = "0248bd48defd788e",
@@ -495,142 +495,142 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/96/9620f9e397e4fda4",
 		file = "9620f9e397e4fda4.livehsv",
-		sha256 = "b497b57410e3bef275b65d84122d8f14108ee5fb6410e4d4d44700efb5c88a52",
+		sha256 = "a0fd9d9aedfda85fed1306af1d98b34fbb65eacf10470023af49c24db977794d",
 	},
 	{
 		stock = "data/b5/b568acd1f3be5206",
 		file = "b568acd1f3be5206.livehsv",
-		sha256 = "e04e5b9c9e913df69fb111654b9fb451fb8aa45e8febfc43d511ae42b847939d",
+		sha256 = "7eb56c4674142c66b350956b865a575dd70a8af5a5b21976b282af28249b5281",
 	},
 	{
 		stock = "data/2e/2e84f67cb43e161e",
 		file = "2e84f67cb43e161e.livehsv",
-		sha256 = "2380c3154317e1814624d41dfd907172b61bfc84281c0f07feb32345ed7ab3ec",
+		sha256 = "72070545d05baa3097dac324e946ea3ab6468db6fff94ad3f396a4d04b747729",
 	},
 	{
 		stock = "data/9c/9c6892714be719be",
 		file = "9c6892714be719be.livehsv",
-		sha256 = "e95f126ac4034bd736eea45c860c162e059ddb748e3629100f649e98eec4ae09",
+		sha256 = "e10c1616f51a8aabcb7586f344f01265276c02d5466986f986f9f85f7c3bec94",
 	},
 	{
 		stock = "data/73/731949c698805166",
 		file = "731949c698805166.livehsv",
-		sha256 = "e55f03ef392281aec940e6fc848e541999ab2b7eec3a50f4a49e85cc31fa46be",
+		sha256 = "1638e47d71c742e66761a8541442b3a9e226c03959e56b9422b27169d6fb12e2",
 	},
 	{
 		stock = "data/e6/e698932c695e72d7",
 		file = "e698932c695e72d7.livehsv",
-		sha256 = "857f110f76119803cdd974ab380343474ed4c8301d721fc6e27d553a1c27b02d",
+		sha256 = "8e1ffdbb56de48de926aced13d234d6c498570b6ebd9b2c025c7631dae7d690b",
 	},
 	{
 		stock = "data/5f/5f599134bd6cb4d7",
 		file = "5f599134bd6cb4d7.livehsv",
-		sha256 = "b7af5f9bf5296ed5bc847cabd1800e6f22d7f2f842f0bc9e101e7d91ab73474a",
+		sha256 = "558d3262e3e3e7324f361caeaa50a346352cae3dfac33aaf9c6d2df73e38cca8",
 	},
 	{
 		stock = "data/18/18c49d3c8a5beffb",
 		file = "18c49d3c8a5beffb.livehsv",
-		sha256 = "4e37d9e2cc997bb09a66d44e715fb75ca4981f9c5a6779a1a8ca2bfd19699256",
+		sha256 = "91bdfa25f0050bea6c24fd60e8b592294652c6a129ae6349915d4af472e43233",
 	},
 	{
 		stock = "data/b3/b3b02753bc5c5eb6",
 		file = "b3b02753bc5c5eb6.livehsv",
-		sha256 = "4e547733db2b26e9741c4501792d622d612c0028d80ad3348b838fbdbcba8bde",
+		sha256 = "bb33340b9d9b191b6f274652a9764f5ea61606efebc72a53a3a3a9afec854711",
 	},
 	{
 		stock = "data/90/908e498779039c2f",
 		file = "908e498779039c2f.livehsv",
-		sha256 = "8492fa5d766ef9e01fbae0a9cf59440ccdecfcdbd3758c8f2ed4e79c2ed4ed2c",
+		sha256 = "1739a64f5e5906d1d759cac9d359b028d4ae78f6e15c71b6f308fea45268093c",
 	},
 	{
 		stock = "data/3d/3d61898424cd2d53",
 		file = "3d61898424cd2d53.livehsv",
-		sha256 = "4875651662fd6972b82dbebb2a6ac3ac65343d501eec678d57b2a19f9036d168",
+		sha256 = "1862f7c2280efb9f92dffae092547f67e7d023c1ccdefd01c9b0b2ec9ce01b58",
 	},
 	{
 		stock = "data/71/71c11a9ab38ccef6",
 		file = "71c11a9ab38ccef6.livehsv",
-		sha256 = "6d1674bcd5478d3acf1456ed4d960b4970fb83d8769d4c04bf2ba1de8f4fcec2",
+		sha256 = "1c8e1c90c4ff7505234ef6fd17f94465d13852e28de6dcdd7908e6542c127769",
 	},
 	{
 		stock = "data/d4/d44c3e55524792c0",
 		file = "d44c3e55524792c0.livehsv",
-		sha256 = "c122610c5dd94867abb7f3431f61c169156881f6305e4e05b72502c930d4a4f0",
+		sha256 = "934659d06f9229120d3fad8987f9f2459440354d62cc4dd5cdb7661a7f30bad1",
 	},
 	{
 		stock = "data/2c/2cf5a90222f0f675",
 		file = "2cf5a90222f0f675.livehsv",
-		sha256 = "b596193206f907a928c0628a4f90800d21f7e947706187b4c8e109cbd38922d9",
+		sha256 = "a42b238ffba4c0d5e61eeb5b76f71210744b6d30979cf1499d042fab0d7ffb15",
 	},
 	{
 		stock = "data/ed/edd0c83a7ed3d834",
 		file = "edd0c83a7ed3d834.livehsv",
-		sha256 = "87cc14d6afc300596c19a501395b5366a7a47ff7c9a71928d1ab9ad01ef2c382",
+		sha256 = "c525935a912bb1130f39bb752dc1bc0dfeb644328d4255b3e4e5ac67763a19f2",
 	},
 	{
 		stock = "data/51/51594febc2f498b9",
 		file = "51594febc2f498b9.livehsv",
-		sha256 = "74f52a0637ba53fa7a46663ba4860c7eef81d30236ec790667a81333e878b4ec",
+		sha256 = "c3eb16be4316eda2f30167ae4f0461c954d4942fb1bb2ec225a84924d6d40301",
 	},
 	{
 		stock = "data/51/51be2b7e18d16f85",
 		file = "51be2b7e18d16f85.livehsv",
-		sha256 = "a10864140669930a89015ff4cf451ed7afe46cd9fbc25fa9a76b0b142fdf841d",
+		sha256 = "7917ef025cc3807ceb2e48d40ae59cf06ee9a07b3e9b36daa43ad41da35dba9c",
 	},
 	{
 		stock = "data/96/9648f7e733af27de",
 		file = "9648f7e733af27de.livehsv",
-		sha256 = "214dcff839537336121802c3bbb2e866650039b9c6768db0dc0ddcd2983bf10a",
+		sha256 = "fe3a4c6668e08ff22f2d8f4245240b289a26bf3cbc4e9156484b36270d683437",
 	},
 	{
 		stock = "data/1b/1b59d000e1b00a00",
 		file = "1b59d000e1b00a00.livehsv",
-		sha256 = "d8c56b2940d70eb53b23243560054cf5edc559cc0ad6455f6b158547c88923ab",
+		sha256 = "8ff9eeff0521c79c7e89b9cdcfbff7b9fe32a3cee51a29137244e0ef888da78e",
 	},
 	{
 		stock = "data/7b/7b5f45d570446038",
 		file = "7b5f45d570446038.livehsv",
-		sha256 = "1b995662d3f11249cf2199efd343fdb2b114259c7d286345aba090d65c6ea537",
+		sha256 = "96eb3a66f4143c13d6bee2929bcfe83e68ec4ad3887751d1e56e0b1dc9ef84ba",
 	},
 	{
 		stock = "data/3e/3e7d35923677ce5b",
 		file = "3e7d35923677ce5b.livehsv",
-		sha256 = "254bd2200f27c4db955b0baecdade15601e253cf0d9080b1d9d5fad792ea6134",
+		sha256 = "892a423ddda8e8a098e488239c3d8aad8b37d772663fc8cfb8c28043d7259b03",
 	},
 	{
 		stock = "data/c2/c29d268a1116d6c8",
 		file = "c29d268a1116d6c8.livehsv",
-		sha256 = "d544156b87acdf683d6a90c26448cc325d27693ed4fc301aef5ae12149b4aa97",
+		sha256 = "9d59c935e2baceccc8ebc147fa84dbbe51d9ba29d940d6ea3f813a6b3cbfe707",
 	},
 	{
 		stock = "data/33/3336d5d7ab5ea336",
 		file = "3336d5d7ab5ea336.livehsv",
-		sha256 = "2d8a4ab46252c021034cb158fcd89cf60b0b1437bbc4055284611ff72ae59bc2",
+		sha256 = "f1ee18f6b1e56652e2481fc79fe0db0c48fbf91a387424ebe6efaa56735e7551",
 	},
 	{
 		stock = "data/bf/bf4522e91fe81307",
 		file = "bf4522e91fe81307.livehsv",
-		sha256 = "ffc8d04018f6d0fd694e6da7f92c336df9db7f3181f6dc6ea2fb6df2b5483856",
+		sha256 = "f3046474a1836ec4e4374db3f6c9672ff0d663251d3d17a81044ade019609eeb",
 	},
 	{
 		stock = "data/94/947f9d05243c5c05",
 		file = "947f9d05243c5c05.livehsv",
-		sha256 = "ef67837e14663e0e8703158441fe80682237ba9895f7bd27e06f694474ac3008",
+		sha256 = "0527ce9ca8ef87827cf16d0ba61b9eb7e929c7a8d78f85bb04e44185b4e7c92f",
 	},
 	{
 		stock = "data/e2/e28e22d29032ef7f",
 		file = "e28e22d29032ef7f.livehsv",
-		sha256 = "a8622ac9082fd5f1c5b3b714ccffc13330d49de71bbc74da988dcd123e751e00",
+		sha256 = "66fd6c30dafb57e29076083068d570e17ce8b861ca3bad0a1e9c8a8ea79be007",
 	},
 	{
 		stock = "data/23/23fef9dc3db476e5",
 		file = "23fef9dc3db476e5.livehsv",
-		sha256 = "4a2d5af10dbd1b310a7c24d36be5551bc14ce0f74f7f73204654d07919ba3f12",
+		sha256 = "678b4e401d252491d55e8cf69961ee352ee0836d7d220d484d6b34d4c53e85a7",
 	},
 	{
 		stock = "data/5b/5bb5ef9851943876",
 		file = "5bb5ef9851943876.livehsv",
-		sha256 = "011bdfd2b865cd203f233aa3b6dfa4508e7b08fd1eae4b1e9a326f66e25d7ce4",
+		sha256 = "49e1e91d5c58d07cef605b52614b13d6a88df0edb24e755ae5159ff363086963",
 	},
 	{
 		stock = "fa1369b4111125f6",
@@ -645,12 +645,12 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/d5/d5a0f8e3403b60c8",
 		file = "d5a0f8e3403b60c8.livehsv",
-		sha256 = "15151a08f681baf9bc7a01948a992268d413b5a82f106ab25bd632d2d2b4288e",
+		sha256 = "8fd1b84bf3ffd75a1e1a47a40b81c7ca1233b371822169b670256bf10b2efd30",
 	},
 	{
 		stock = "data/3c/3c2bb28d1f2b943b",
 		file = "3c2bb28d1f2b943b.livehsv",
-		sha256 = "cb1012442c5a7e1c9c28d23139db14262cb1a3620173f2a1a0f3ba6ade2a1ae7",
+		sha256 = "bf6390980da01d26443af6693805cc5455c347561d4ce4649da0377971d09553",
 	},
 	{
 		stock = "data/zz/f0f3000000000a00",
@@ -775,12 +775,12 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/f7/f7b45efae8760175",
 		file = "f7b45efae8760175.livehsv",
-		sha256 = "c12e67e152f9b44fe23eae6abb423229de3f938679844542f78c14b653b8dfb1",
+		sha256 = "9c6c3a104e72269af4e86721539c428a0ce28c8a0e18546735e2001b108696ae",
 	},
 	{
 		stock = "data/cb/cb1759794495e9e3",
 		file = "cb1759794495e9e3.livehsv",
-		sha256 = "022c7b011e28c9d5d752d03312afdfa1f77c79fa646e3386c5ec08b741f4de19",
+		sha256 = "765dee2d51a23cd1aff0ca0276158e876843b96eb64d4a2f7e1d6d3f07670e4c",
 	},
 	{
 		stock = "7050bcf7efa8671b",
@@ -840,27 +840,27 @@ local LAS_REDIRECTS = {
 	{
 		stock = "data/3c/3ca6a9ce11c7dfe1",
 		file = "3ca6a9ce11c7dfe1.livehsv",
-		sha256 = "9830f634355d4a20e17553c39ed1329051615162d50817034be94508311de600",
+		sha256 = "8377f015fbc4c9148114e77bbceb8b3e7a459d37e3df3ab5e08195f2c734ef4d",
 	},
 	{
 		stock = "data/60/607dbb4a57138f8d",
 		file = "607dbb4a57138f8d.livehsv",
-		sha256 = "fd3e2a4e735e6adf4c2f73a12eacb187983154ace6414b316fb375c8b0e0581d",
+		sha256 = "9e0657d90958670b552f169281390a24a77903802d3d75c401d38860c1e3db2e",
 	},
 	{
 		stock = "data/3d/3d0cb1d8ae277e71",
 		file = "3d0cb1d8ae277e71.livehsv",
-		sha256 = "33d0be88ab9d3e34ef72ef0d6da13c6b0ea77f585f1df32c098a1894375ecc14",
+		sha256 = "1dd227c9d54371ddf42e6d76b76f275df592375f552bfcb15c87e652df6c2156",
 	},
 	{
 		stock = "data/2c/2c867be4918ccc18",
 		file = "2c867be4918ccc18.livehsv",
-		sha256 = "3ba9339b0a0d7aaa39d1ab41f3cc6ce60bb0dcf93a303526cd4827f1d7f3565b",
+		sha256 = "f3e7a25f8be60fb5991736af9e27e31739716d467f99e578fd2652edd3473347",
 	},
 	{
 		stock = "data/18/18f92705d5855677",
 		file = "18f92705d5855677.livehsv",
-		sha256 = "b21bb799a3ada84c8b443c486665543bbbbdff9444dabd1f389ab084f2de630d",
+		sha256 = "1a1543a6f9b43358c8d2d86b75f1824de10c03ffefbbf663d0305dbba2f95066",
 	},
 	{
 		stock = "f6f1954051323147",
@@ -904,42 +904,42 @@ local BURN_REDIRECTS = {
 	{
 		stock = "data/b2/b250a66edd2382b7",
 		file = "b250a66edd2382b7.burnhsv",
-		sha256 = "b245262d4f3f4778fd87f42ac33e08355487359131a87154525e6e907ce9a173",
+		sha256 = "d2cad05bf917a93a92be6ca764f41578fdb273cbe330d66dc8fb74be20bb7f78",
 	},
 	{
 		stock = "data/4f/4f3c20108df32ff2",
 		file = "4f3c20108df32ff2.burnhsv",
-		sha256 = "1a04fc2d6fed9082916aa63ae13d7708b42367dda9aa27f7b842348e7e4325f1",
+		sha256 = "abb2900b79dae56c64470471e12c73a7393d3bb405bf293328e5705cf98d13e4",
 	},
 	{
 		stock = "data/ad/ade3d7d830f2254a",
 		file = "ade3d7d830f2254a.burnhsv",
-		sha256 = "f2090cf4c2692c50d108246dd427f027573f3e6b5e93fb2a41bfdf5a20129e4a",
+		sha256 = "9b89b6b7a8cf1c4f75414e36e2553500bdcd2bd973fc1b3763c4c9ba163bfc34",
 	},
 	{
 		stock = "data/eb/eb09dd77efe06a9d",
 		file = "eb09dd77efe06a9d.burnhsv",
-		sha256 = "8b7ff871f4aedbad4d95e75885302cf0abd1fc8c05845b8d7899339bb8bfd688",
+		sha256 = "cdbe7ae84155819f4c10e69104c3171294a8e31f63b5c1fa921c4fc2c2c66a5b",
 	},
 	{
 		stock = "data/2d/2d197c488c9bebc2",
 		file = "2d197c488c9bebc2.burnhsv",
-		sha256 = "708624b602f9afd4713cfb6db6de07d3177a9f07634e34f2555d3a9940e46d5c",
+		sha256 = "8f4d9da89464916252b0d3e835a0ca6579286c77855fad028b0cab3bb4bdf802",
 	},
 	{
 		stock = "data/35/35ef09cd5356eead",
 		file = "35ef09cd5356eead.burnhsv",
-		sha256 = "98313507ea71ac15c50c18e3d798e1d2f4a55d89c46396df832e82324381df14",
+		sha256 = "f8ed47bf86a1126d60a1663009378cc026b07dfa327a47b664a1ce2ac3b132b1",
 	},
 	{
 		stock = "data/7f/7f17d42421a43450",
 		file = "7f17d42421a43450.burnhsv",
-		sha256 = "2ee0dedaae49293f3cbc76ea463b334236c230e2d14d07e5d3c3e066c1f62313",
+		sha256 = "8e7e780beb2bfc826cf8b151d3b378fc87e5a7d7cef135662e9a107e74de8a96",
 	},
 	{
 		stock = "data/44/4490a3f7f03c1e69",
 		file = "4490a3f7f03c1e69.burnhsv",
-		sha256 = "8ee1886f3953e8c772f8b99f7b33d5e3d0c3168ba5dab8a98e3d8c67d11fb0db",
+		sha256 = "dd5c95c040f1595f5f3a5dec8a39763debb5c79979667aa51aeb183597880052",
 	},
 }
 
@@ -961,84 +961,84 @@ local SOUL_SLOTS = {
 		bundle = "2e65e32cf980553b",
 		bundle_sha256 = "c7f632d222cb1dacc1c4936497a6b12d47ffb42752c99300c753d944fe7c9c7b",
 		material = "data/3f/3ffd686f6ff27952",
-		material_sha256 = "87ca4f1559557d2720059fea1daffb191b4fb45d8de61769677f417bc1df0feb",
+		material_sha256 = "038beb79adb65bb7ec75096b159159ff2699ed794d38e6632d0e0fad66a7a9af",
 	},
 	{
 		package = "content/fx/particles/debug/fx_debug_gpu_fireball_normal",
 		bundle = "f0806ea958cf8ff7",
 		bundle_sha256 = "1b1ff8645e7927d065b3a35417bb674bd55514746bdb58e5e3615bdfa4738a9d",
 		material = "data/da/dacf0e63f7921f7a",
-		material_sha256 = "94b59b82660b3782f28c0e7fea89885a6aa047fc9190b9d1b7e43da6dbe430bf",
+		material_sha256 = "3b6c0a0bd9c7b15a03d2d6ed8b2e71cc18337aecf1dd426d45cf98ac8b4f10fb",
 	},
 	{
 		package = "content/fx/particles/weapons/rifles/ripper_gun/ripper_gun_trail",
 		bundle = "2e58389b6ed2142d",
 		bundle_sha256 = "5012fb3008acb1f00827c9aeb76463280d5fb1d99b2f013e485936d458d079ce",
 		material = "data/3c/3c50f2ff573a08cd",
-		material_sha256 = "d0aef3b35dcdce97857fe9df44451a840d1471740384bcf431f837b3d1975450",
+		material_sha256 = "4bc885f2c9d23bcea7b2a969f6235a82f594a0ca4dc989cd4fa6286bd8e24a34",
 	},
 	{
 		package = "content/fx/particles/impacts/weapons/hammer_impact",
 		bundle = "14d5b2c5e9ebee8f",
 		bundle_sha256 = "8eddf55f76cd34d5b88b3b44c7e5400a7a58d97464e1ba829183f1852333ba10",
 		material = "data/fd/fdf161cab348d473",
-		material_sha256 = "7f029e9d7df99b71986066480350cc2c69cb722131a51a187fba9375b29a0fb7",
+		material_sha256 = "5fbe19107e8f9f212654082c5e396e182a809793c7ab9be42dc98ad3c5c32717",
 	},
 	{
 		package = "content/fx/particles/enemies/plague_ogryn_flies",
 		bundle = "f608745eeef0699e",
 		bundle_sha256 = "f7f5be2a1a0babc98eea173b7b8e59b1698f54405de9a1fc6e50788071634290",
 		material = "data/05/0513e621cdd87ad5",
-		material_sha256 = "d448c8383e4553409ea313163e1c93ccadb16cd7c2fcea96c1b68b653a8206a3",
+		material_sha256 = "e623907924b5369acd44c09b21521273404f7805460312ffff9df3775634c71b",
 	},
 	{
 		package = "content/fx/particles/enemies/lasgun_beam_assault",
 		bundle = "d1b72a7d311e7090",
 		bundle_sha256 = "63c42459f77dafa516c7ddc15eb6223b617b7147ab110ee1a2fdc180d97fdfd4",
 		material = "data/1a/1a07775aebe7ef0e",
-		material_sha256 = "b6901364f4565352241d8287d7dad2c46b4f8f11dd5e0afd97fb55fe629fd063",
+		material_sha256 = "a7d973e7807b57b3c60028d8fd4ffbbefb0bd25f4b652848e9b0f97f4f7f0e0b",
 	},
 	{
 		package = "content/fx/particles/liquid_area/corruptor_nurgle_goo_splatter",
 		bundle = "e0f0480393b4255a",
 		bundle_sha256 = "674e0bcb8b1b9c25f5aae9c38add454ac7e4600d16ed68dace2d1c8472f50e0d",
 		material = "data/f1/f197c21689ca1ef6",
-		material_sha256 = "56aa80e289f0518e9557b9b35e70bbaade02cafe222c514c8187bca1de86b6e6",
+		material_sha256 = "45e49045e102f54625d53765bfe0163a540dcda375c8f80630bfa2808c9943c3",
 	},
 	{
 		package = "content/fx/particles/weapons/rifles/shotgun/combat_shotgun_ogryn_impact_v01",
 		bundle = "9d3c4c3582f50f13",
 		bundle_sha256 = "9d14be1f9cea237647e375e0847d0089ef1aa9b9beffd358c1a73da5c5153f89",
 		material = "data/87/87df9553641534df",
-		material_sha256 = "bfaf1600e14c39f6b213618faff0a088fa098b43439605f317e0870474b5a0cd",
+		material_sha256 = "a629ba72bdb84968c6b8ba68a6ef5d32cca25bcd4871e0718c3f61fac3f719d4",
 	},
 	{
 		package = "content/fx/particles/screenspace/screen_ogryn_charge",
 		bundle = "80d83c7c23a3464b",
 		bundle_sha256 = "6764699f2c10ecdc0930ddd4a926173432215c102778f761a05af9016aa7d14a",
 		material = "data/21/21e06c09435b212e",
-		material_sha256 = "b1f72270e3420aac7c4ea66c99d87bcb014a3e5b5303e339e24764849b0c9e8c",
+		material_sha256 = "690a61a83338cf6927d1d214a65ff6c7341c78a49f9d54b5cc25b30165949d1d",
 	},
 	{
 		package = "content/fx/particles/weapons/rifles/zealot_flamer/zealot_flamer_code_control",
 		bundle = "4713ab38f46f4f07",
 		bundle_sha256 = "3cdc22e667dc8c53a3982c97c105fd69b333f081efa8b7d71e1e58618b4dcc35",
 		material = "data/3e/3ecd3bb2d511984e",
-		material_sha256 = "f4e9ee33c27fdff596f2641d7ddefbb940a04a6ac73175cdf4f8c76b7a7e2900",
+		material_sha256 = "cfedf2c4e66783bfecd9c0ed24331b246dbd6556a48ef5aeefba8285ddf78c69",
 	},
 	{
 		package = "content/fx/particles/impacts/weapons/lasgun/lasgun_impact_weakspot",
 		bundle = "e3eac989dc018e47",
 		bundle_sha256 = "58225a9e98b515a7095908ac811be8d7621f8ea9f7fe8b296fe3637548145e9f",
 		material = "data/17/170af2d8a7f30f7b",
-		material_sha256 = "565095500e790db9431943162dc19cc6b5ff7e757e1625f53cfa55584fc73917",
+		material_sha256 = "8848d8391cd54787db394e91c08350622d92df307acca0de6ec4cd580504b975",
 	},
 	{
 		package = "content/fx/particles/screenspace/screen_zealot_preacher_shield",
 		bundle = "84d9e75472d57ebb",
 		bundle_sha256 = "4f7a6192442e98fa9572411d158b77d09f7e5f85ca0b4f4531c4b3cf1b8417ca",
 		material = "data/75/750c5672dc47d156",
-		material_sha256 = "3cd5dd804fb51e63ead0bf3cd48dcabd99a5357e21cf17de69ef7d87accbfb1f",
+		material_sha256 = "f1783db2dc5671c5952f6a985725d2bf842750be9b937f574c438857aec15287",
 	},
 }
 local baked = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychromatic_bake")({
@@ -1054,6 +1054,34 @@ local GLOW_SLOTS = baked.glow_slots
 local GLOW_SOURCE_EFFECTS = baked.glow_source_effects
 
 local asset_redirect = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/asset_redirect")
+local _material_format = { expected = 62, probe = "../bundle/data/e9/e90383bc561fd9ae" }
+
+do
+	local lua = rawget(_G, "Mods") and Mods.lua
+	local lua_io = lua and lua.io
+	local file = lua_io and lua_io.open(_material_format.probe, "rb")
+	local head = file and file:read(4)
+
+	if file then
+		file:close()
+	end
+
+	if head and #head == 4 then
+		local b1, b2, b3, b4 = string.byte(head, 1, 4)
+
+		_material_format.found = b1 + b2 * 256 + b3 * 65536 + b4 * 16777216
+	end
+
+	_material_format.ok = _material_format.found == _material_format.expected
+
+	if not _material_format.ok then
+		if asset_redirect then
+			asset_redirect.clear(mod)
+		end
+
+		asset_redirect = nil
+	end
+end
 local REDIRECT_CONTRACT = "polychromatic_jet/live_hsv"
 local _redirect_handles = {}
 
@@ -1210,6 +1238,8 @@ end
 
 local _gameplay_running = false
 
+local _cloud_cache = {}
+
 local function tint(world, particle_id, value)
 	if not _gameplay_running then
 		return false
@@ -1219,7 +1249,27 @@ local function tint(world, particle_id, value)
 		return true
 	end
 
-	local written = 0
+	local cached = _cloud_cache[particle_id]
+
+	if cached then
+		local hits = 0
+
+		for i = 1, #cached do
+			local cloud = cached[i]
+
+			if World_has_particles_material(world, particle_id, cloud) then
+				World_set_particles_material_scalar(world, particle_id, cloud, VARIABLE, value)
+
+				hits = hits + 1
+			end
+		end
+
+		if hits == #cached then
+			return true
+		end
+	end
+
+	local found = {}
 
 	for i = 1, MAX_CLOUDS do
 		local cloud = CLOUDS[i]
@@ -1227,11 +1277,13 @@ local function tint(world, particle_id, value)
 		if World_has_particles_material(world, particle_id, cloud) then
 			World_set_particles_material_scalar(world, particle_id, cloud, VARIABLE, value)
 
-			written = written + 1
+			found[#found + 1] = cloud
 		end
 	end
 
-	return written > 0
+	_cloud_cache[particle_id] = found[1] and found or nil
+
+	return found[1] ~= nil
 end
 
 local function gameplay_time()
@@ -1526,6 +1578,10 @@ local function clear_pending_tints()
 	for i = #_pending_tints, 1, -1 do
 		_pending_tints[i] = nil
 	end
+
+	for particle_id in pairs(_cloud_cache) do
+		_cloud_cache[particle_id] = nil
+	end
 end
 
 local STAFF_IMPACT_EFFECT = "content/fx/particles/weapons/flame_staff/psyker_flame_staff_impact_delay"
@@ -1755,7 +1811,7 @@ local _extended_load_ids = rawget(_G, "__polychromatic_extended_packages") or {}
 rawset(_G, "__polychromatic_extended_packages", _extended_load_ids)
 
 local function pin_extended_packages()
-	if not Managers.package then
+	if not Managers.package or not asset_redirect then
 		return
 	end
 
@@ -2164,19 +2220,36 @@ mod:hook(CLASS.FxSystem, "play_shotshell_surface_impact_fx", function(func, self
 	return call_with_owner(category_of_unit(attacking_unit), func, self, fire_position, hit_positions, hit_normals, source_parameters, attacking_unit, ...)
 end)
 
-local SLOT_SCRIPT_ENTRY_POINTS = { "update", "fixed_update", "post_update", "update_unit_position" }
+local SLOT_SCRIPT_SPAWNERS = {
+	ForceWeaponBlockEffects = { "update" },
+	ForceWeaponWindSlashStageEffects = { "update", "wield" },
+	ForceWeaponWindSlashActivationEffects = { "update_unit_position" },
+	PlasmagunOverheatEffects = { "update" },
+}
+local _slot_script_owners = setmetatable({}, { __mode = "k" })
 
-mod:hook_require("scripts/extension_systems/visual_loadout/utilities/wieldable_slot_scripts", function(WieldableSlotScripts)
-	for i = 1, #SLOT_SCRIPT_ENTRY_POINTS do
-		local entry_point = SLOT_SCRIPT_ENTRY_POINTS[i]
+local function slot_script_category(slot_script)
+	local category = _slot_script_owners[slot_script]
 
-		if WieldableSlotScripts[entry_point] then
-			mod:hook(WieldableSlotScripts, entry_point, function(func, wieldable_slot_scripts, unit, ...)
-				return call_with_owner(player_category(unit), func, wieldable_slot_scripts, unit, ...)
-			end)
-		end
+	if type(category) ~= "string" then
+		category = player_category(category or slot_script._owner_unit)
+		_slot_script_owners[slot_script] = category
 	end
-end)
+
+	return category
+end
+
+for class_name, methods in pairs(SLOT_SCRIPT_SPAWNERS) do
+	mod:hook_safe(CLASS[class_name], "init", function(self, context)
+		_slot_script_owners[self] = context and context.owner_unit
+	end)
+
+	for i = 1, #methods do
+		mod:hook(CLASS[class_name], methods[i], function(func, self, ...)
+			return call_with_owner(slot_script_category(self), func, self, ...)
+		end)
+	end
+end
 
 local function flamer_set(self)
 	return self._weapon_actions.action_shoot_flame and "staff" or "flamer"
@@ -2721,6 +2794,11 @@ mod.on_all_mods_loaded = function()
 	local in_level = ui ~= nil and ui:get_current_sub_state_name() == "GameplayStateRun"
 
 	_gameplay_running = in_level
+
+	if not _material_format.ok then
+		mod:info("game material format %s, payload built for %s: every patched file stays stock", tostring(_material_format.found), tostring(_material_format.expected))
+		mod:echo(mod:localize("game_format_changed"))
+	end
 
 	if not asset_redirect then
 		return
