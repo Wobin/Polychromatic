@@ -1,7 +1,7 @@
 # Polychromatic: how each effect gets its colour
 
 Every recolour in the mod is one of seven mechanisms. This document says which mechanism each effect
-family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.0.4
+family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.0.5
 (2026-09-27). It lives in the repository under `docs/` and is excluded from the release zip.
 
 Two engine facts decide the mechanism for every effect:

@@ -1,7 +1,7 @@
 --[[
 	Name: Polychromatic
 	Author: Wobin
-	Date: 28/09/2026
+	Date: 29/09/2026
 ]]--
 
 local mod = get_mod("Polychromatic")
@@ -1070,6 +1070,8 @@ if asset_redirect then
 			contract = REDIRECT_CONTRACT,
 		})
 	end
+
+	asset_redirect.commit()
 end
 
 local _debug_logging = mod:get("debug_logging") == true
