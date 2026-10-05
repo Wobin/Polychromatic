@@ -1,5 +1,7 @@
 return function(context)
 	local mod = context.mod
+	local REDIRECT_DATA = context.redirect_data
+	local EFFECT_DATA = context.effect_data
 	local math_floor = math.floor
 	local math_max = math.max
 	local math_min = math.min
@@ -149,52 +151,7 @@ return function(context)
 		end
 	end
 
-	local GLOW_SLOTS = {
-		muzzle = {
-			{
-				package = "content/fx/particles/debug/fx_debug_1m_blue",
-				bundle = "6c363592a35f5599",
-				bundle_sha256 = "8ab4b5e21781b700051df420a400b0f3ae028ca7d272640eb38571936f405c4f",
-				material = "f0f0000000000007",
-				virtual_path = "data/zz/f0f0000000000007",
-			},
-			{
-				package = "content/fx/particles/debug/fx_debug_1m_red",
-				bundle = "88cedce8a498f97e",
-				bundle_sha256 = "4dea34a5d7d323d046af778991c008e2352982a0d2b8106cf1860566d8bc0f96",
-				material = "f0f0000000000008",
-				virtual_path = "data/zz/f0f0000000000008",
-			},
-			{
-				package = "content/fx/particles/debug/fx_debug_1m_green",
-				bundle = "d932eac771ff85ae",
-				bundle_sha256 = "38d3c5c84bab2547f5ecd0c17d2f0658295f4ffd137b2a828a149404d58ee782",
-				material = "f0f0000000000009",
-				virtual_path = "data/zz/f0f0000000000009",
-			},
-			{
-				package = "content/fx/particles/impacts/flesh/blood_splatter_01_old",
-				bundle = "81686d16269ea030",
-				bundle_sha256 = "89d512bf2f590d966944fa3cd71d3ce262f7ac8aad3b9e789f46731cd29c8cd1",
-				material = "f0f000000000000a",
-				virtual_path = "data/zz/f0f000000000000a",
-			},
-			{
-				package = "content/fx/particles/impacts/flesh/blood_fountain_head_01_old",
-				bundle = "43fcfaba468316d8",
-				bundle_sha256 = "8a0c6162946fcb7e99f43ccecac541773b9ace84973ce0fea77c3d3271426e1b",
-				material = "f0f000000000000b",
-				virtual_path = "data/zz/f0f000000000000b",
-			},
-			{
-				package = "content/fx/particles/impacts/weapons/autogun/autogun_impact_02_old",
-				bundle = "ff966c81581e8207",
-				bundle_sha256 = "0146e4e7e09303bdcafaf56305ba6dcdb64328fa826432ddc64bea2520524998",
-				material = "f0f000000000000c",
-				virtual_path = "data/zz/f0f000000000000c",
-			},
-		},
-	}
+	local GLOW_SLOTS = mod:io_dofile(REDIRECT_DATA .. "glow_slots")
 
 	local GLOW_SOURCE_EFFECTS = {
 		["content/fx/particles/weapons/rifles/laspistol/laspistol_heavy_muzzle"] = "muzzle",
@@ -513,83 +470,7 @@ return function(context)
 		end
 	end
 
-	local GLOW_REDIRECTS = {
-		{
-			stock = "data/bc/bc95c93681c9f0f7",
-			file = "bc95c93681c9f0f7.livehsv",
-			sha256 = "b7d689c5159cca7fb29b97ab4e968dc2c73907d091af3feb2728ba303a065984",
-		},
-		{
-			stock = "data/zz/f0f0000000000101",
-			file = "f0f0000000000101.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "data/zz/f0f0000000000102",
-			file = "f0f0000000000102.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "6c363592a35f5599",
-			file = "6c363592a35f5599.glowslot",
-			sha256 = "8ab4b5e21781b700051df420a400b0f3ae028ca7d272640eb38571936f405c4f",
-		},
-		{
-			stock = "data/zz/f0f0000000000007",
-			file = "f0f0000000000007.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "88cedce8a498f97e",
-			file = "88cedce8a498f97e.glowslot",
-			sha256 = "4dea34a5d7d323d046af778991c008e2352982a0d2b8106cf1860566d8bc0f96",
-		},
-		{
-			stock = "data/zz/f0f0000000000008",
-			file = "f0f0000000000008.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "d932eac771ff85ae",
-			file = "d932eac771ff85ae.glowslot",
-			sha256 = "38d3c5c84bab2547f5ecd0c17d2f0658295f4ffd137b2a828a149404d58ee782",
-		},
-		{
-			stock = "data/zz/f0f0000000000009",
-			file = "f0f0000000000009.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "81686d16269ea030",
-			file = "81686d16269ea030.glowslot",
-			sha256 = "89d512bf2f590d966944fa3cd71d3ce262f7ac8aad3b9e789f46731cd29c8cd1",
-		},
-		{
-			stock = "data/zz/f0f000000000000a",
-			file = "f0f000000000000a.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "43fcfaba468316d8",
-			file = "43fcfaba468316d8.glowslot",
-			sha256 = "8a0c6162946fcb7e99f43ccecac541773b9ace84973ce0fea77c3d3271426e1b",
-		},
-		{
-			stock = "data/zz/f0f000000000000b",
-			file = "f0f000000000000b.glowpal",
-			virtual = true,
-		},
-		{
-			stock = "ff966c81581e8207",
-			file = "ff966c81581e8207.glowslot",
-			sha256 = "0146e4e7e09303bdcafaf56305ba6dcdb64328fa826432ddc64bea2520524998",
-		},
-		{
-			stock = "data/zz/f0f000000000000c",
-			file = "f0f000000000000c.glowpal",
-			virtual = true,
-		},
-	}
+	local GLOW_REDIRECTS = mod:io_dofile(REDIRECT_DATA .. "glow_redirects")
 
 	for i = 1, #GLOW_REDIRECTS do
 		REDIRECTS[#REDIRECTS + 1] = GLOW_REDIRECTS[i]
@@ -604,11 +485,7 @@ return function(context)
 		slot.material_redirect = #REDIRECTS
 	end
 
-	local BURN_BUNDLES = {
-		{ bundle = "3d574968047de622", sha256 = "6dd0375c40c895e581ded45e0aac09a6e1c2f4a48c9dcaea993410a06a005471", package = "content/fx/particles/enemies/buff_burning" },
-		{ bundle = "ec588082b617bc4d", sha256 = "cb962d2a7df373986633cff3efaa12f17b5bcbf00368c855478162d4aab45fdc", package = "content/fx/particles/enemies/buff_burning_stack_lvl02" },
-		{ bundle = "a9dfcc3f7330140a", sha256 = "02ac7bca710a567d729e2f8bd133da3519bce1708b70d5b8315737fb1f217de0", package = "content/fx/particles/enemies/buff_burning_stack_lvl03" },
-	}
+	local BURN_BUNDLES = mod:io_dofile(REDIRECT_DATA .. "burn_bundles")
 
 	for i = 1, #BURN_BUNDLES do
 		REDIRECTS[#REDIRECTS + 1] = { stock = BURN_BUNDLES[i].bundle, file = BURN_BUNDLES[i].bundle .. ".pyro", sha256 = BURN_BUNDLES[i].sha256 }
@@ -709,20 +586,7 @@ return function(context)
 	local PLASMA_TRAIL_TEMPLATE = "c9a22ea5418d46c4.plasmatemplate"
 	local PLASMA_TRAIL_SIZE = 116416
 	local PLASMA_TRAIL_OFFSET = 328
-	local PLASMA_TRAIL_SLOTS = {
-		{ file = "f0f0000000000901.plasmapal", name = "\31\215\71\224\127\72\39\252" },
-		{ file = "f0f0000000000902.plasmapal", name = "\168\247\196\175\120\157\17\12" },
-		{ file = "f0f0000000000903.plasmapal", name = "\86\31\230\40\154\61\162\12" },
-		{ file = "f0f0000000000904.plasmapal", name = "\165\117\61\166\95\205\86\197" },
-		{ file = "f0f0000000000905.plasmapal", name = "\110\237\38\56\188\247\87\223" },
-		{ file = "f0f0000000000906.plasmapal", name = "\38\87\66\155\225\146\109\126" },
-		{ file = "f0f0000000000907.plasmapal", name = "\53\216\93\40\180\129\196\174" },
-		{ file = "f0f0000000000908.plasmapal", name = "\237\106\184\213\197\127\188\31" },
-		{ file = "f0f0000000000909.plasmapal", name = "\232\168\238\210\232\12\248\55" },
-		{ file = "f0f000000000090a.plasmapal", name = "\156\39\211\204\138\223\81\164" },
-		{ file = "f0f000000000090b.plasmapal", name = "\182\0\199\225\63\100\113\86" },
-		{ file = "f0f000000000090c.plasmapal", name = "\133\11\188\236\167\89\31\188" },
-	}
+	local PLASMA_TRAIL_SLOTS = mod:io_dofile(EFFECT_DATA .. "plasma_trail_slots")
 
 	local function bake_plasma_trail()
 		local lua = rawget(_G, "Mods") and Mods.lua

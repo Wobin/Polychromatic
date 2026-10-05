@@ -15,7 +15,8 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 |---|---|
 | Inferno staff | Streams and wall impacts. Enemies you set alight with it glow and burn in that colour (Soulblaze). |
 | Flamer | Zealot flamer streams and wall impacts. Enemies you set alight burn in that colour. |
-| Servo-skull flamer | The Skitarii companion's flamer. Enemies it sets alight burn in that colour. |
+| Servo-Skull flame | The Skitarii companion's flamer. Enemies it sets alight burn in that colour. |
+| Servo-Skull las | The Skitarii companion's las shots: muzzle flash, beam, linger, impacts and scope glint. |
 | Las weapons | Beams, muzzle flashes and impacts for lasguns, laspistols and the Helbore. |
 | Plasma gun | Muzzle, charge, overcharge vents, beams, impacts and charged explosions. |
 | Force greatsword | Charge, activation, fingertip wisps, block, parry, push, and the glow of the wind slash. The blue arc of the slash itself stays stock. |

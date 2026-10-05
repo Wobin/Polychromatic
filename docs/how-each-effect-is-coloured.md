@@ -1,8 +1,8 @@
 # Polychromatic: how each effect gets its colour
 
 Every recolour in the mod is one of seven mechanisms. This document says which mechanism each effect
-family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.0.6
-(2026-09-27). It lives in the repository under `docs/` and is excluded from the release zip.
+family uses, why, and what blocks the ones that stay stock. It describes the mod as of 1.1.0
+(2026-10-05). It lives in the repository under `docs/` and is excluded from the release zip.
 
 Two engine facts decide the mechanism for every effect:
 
@@ -21,7 +21,7 @@ Two engine facts decide the mechanism for every effect:
 
 ## The sources, one by one
 
-Seven sources ship.
+Eight sources ship.
 
 ### Inferno staff (`staff`: mine, team)
 
@@ -57,8 +57,33 @@ Seven sources ship.
 ### Servo-skull flamer (`skull`: mine, team)
 
 - The Skitarii companion's flamer: mechanism B on `companion_servo_skull_flamer_code_control`,
-  tinted from a hook on `servo_skull_flamer.update`. "Mine" when the skull belongs to the local
+  tinted from a hook on `servo_skull_flamer.update`. Labelled "Servo-Skull flame" since 1.1.0. "Mine" when the skull belongs to the local
   player.
+
+### Servo-skull las (`skull_las`: mine, team)
+
+The Skitarii companion skull's own yellow las effects, used by nothing else in the game.
+
+- **Beam** (`lasgun_beam_yellow`): mechanism B on a newly patched `eeeeb4fa`, the parent behind every
+  las beam material (the player beams, autogun and enemy beams included). All five materials under it
+  hold exactly 1000.0, and only the skull's beam cloud is renamed, so the rest stay bit-exact stock.
+- **Linger, impacts, armour sparks, scope glint**: mechanism B on parents already patched for las,
+  enemy las and the sniper scope.
+- **Muzzle** (`lasgun_charged_muzzle_skull_yellow`): the flash body on a newly patched `8dc48c49` and
+  a fire-ramp slot on `e215f8ee` (both skull-only), plus two core clouds written with BOTH
+  `lerp_color_a` and `lerp_color_b`: the skull's core material holds the same yellow in each, and
+  writing only `a` leaves it yellow.
+- **Charge-up** (`lasgun_chargeup_skull_yellow`, spawned by the `companion_servo_skull_charged_shooting`
+  effect template between shots, and the yellow glow players actually notice): both lerp colours on
+  its two core clouds, and its flare repointed through an added record at the patched las flare
+  (mechanism D). That makes it an extended bundle, so its package is pinned. Its particle group does
+  NOT block live writes.
+- Owner: the game registers a companion skull as owned by its player, so `category_of_unit` gives
+  "mine" when the owner is the local player. Muzzle and beam carry the skull as owner through hooks on
+  `MinionFxExtension._trigger_inventory_vfx` and `_trigger_unit_line_fx`; the charge-up and scope glint
+  have no owner and count as "mine" within 3 m of the local player's skull.
+- Stays stock: the generic layer (`2c6cf77d`, shared with 34 autogun and bolter muzzles) and the
+  baked glare palette on the yellow impacts.
 
 ### Las weapons (`las`: mine, team)
 

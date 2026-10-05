@@ -2,15 +2,7 @@ local redshift = get_mod("Redshift")
 local redshift_active = redshift ~= nil and redshift:is_enabled()
 local SNIPER_TITLE_REDSHIFT = "Enemy Sniper Laser - [Redshift Is Handling This]"
 
-local SETS = {
-	{ id = "staff", categories = { "mine", "team" }, label = "Inferno staff", description = "Psyker Inferno staff streams and their wall impacts." },
-	{ id = "flamer", categories = { "mine", "team" }, label = "Flamer", description = "Zealot flamer streams and wall impacts." },
-	{ id = "skull", categories = { "mine", "team" }, label = "Servo-skull flamer", description = "The Skitarii companion servo-skull flamer." },
-	{ id = "las", categories = { "mine", "team" }, label = "Las weapons", description = "Las beams, muzzle flashes and impacts for lasguns, laspistols and the Helbore." },
-	{ id = "plasma", categories = { "mine", "team" }, label = "Plasma gun", description = "Plasma gun muzzle, charge, overcharge vents, beams, impacts and charged explosions." },
-	{ id = "greatsword", categories = { "mine", "team" }, label = "Force greatsword", description = "Psyker two-hand force sword: charge, activation, the warp wisps at the fingertips, blocks, parries and the push." },
-	{ id = "sniper", categories = { "enemy" }, label = "Enemy sniper laser", description = "The Scab Sniper targeting laser and its shot. Stock red is easy to lose against warm backgrounds." },
-}
+local SETS = get_mod("Polychromatic"):io_dofile("Polychromatic/scripts/mods/Polychromatic/sets")
 
 local SHOW_LABELS = {
 	mine = "Show my fire",

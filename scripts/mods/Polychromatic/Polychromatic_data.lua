@@ -1,14 +1,6 @@
 local mod = get_mod("Polychromatic")
 
-local SETS = {
-	{ id = "staff", categories = { "mine", "team" } },
-	{ id = "flamer", categories = { "mine", "team" } },
-	{ id = "skull", categories = { "mine", "team" } },
-	{ id = "las", categories = { "mine", "team" } },
-	{ id = "plasma", categories = { "mine", "team" } },
-	{ id = "greatsword", categories = { "mine", "team" } },
-	{ id = "sniper", categories = { "enemy" } },
-}
+local SETS = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/sets")
 
 local MODE_OPTIONS = {
 	{ text = "mode_stock", value = "stock", show_widgets = {} },
