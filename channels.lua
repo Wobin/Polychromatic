@@ -1,0 +1,17 @@
+return {
+	{ name = "surge_mine", setting = "terrain_tesselation_min_distance", slot = 1 },
+	{ name = "surge_team", setting = "terrain_tesselation_min_distance", slot = 2 },
+	{ name = "arc_mine", setting = "terrain_tesselation_min_distance", slot = 3 },
+	{ name = "arc_team", setting = "terrain_tesselation_max_distance", slot = 1 },
+	{ name = "arc_maul_mine", setting = "terrain_tesselation_max_distance", slot = 2 },
+	{ name = "arc_maul_team", setting = "terrain_tesselation_max_distance", slot = 3 },
+	{ name = "barrel_enemy", setting = "terrain_displacement_min_distance", slot = 1 },
+	{ name = "fire_grenade_mine", setting = "terrain_displacement_min_distance", slot = 2 },
+	{ name = "fire_grenade_team", setting = "terrain_displacement_min_distance", slot = 3 },
+	{ name = "plasma_mine", setting = "terrain_displacement_max_distance", slot = 1 },
+	{ name = "plasma_team", setting = "terrain_displacement_max_distance", slot = 2 },
+	{ name = "smite_mine", setting = "terrain_displacement_max_distance", slot = 3 },
+	{ name = "smite_team", setting = "occlusion_debug_far", slot = 1 },
+	{ name = "brain_burst_mine", setting = "occlusion_debug_far", slot = 2 },
+	{ name = "brain_burst_team", setting = "occlusion_debug_far", slot = 3 },
+}

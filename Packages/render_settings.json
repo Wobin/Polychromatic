@@ -1,0 +1,7 @@
+{
+ "occluder_debug_far": 300,
+ "occluder_debug_opacity": 0.5,
+ "occlusion_debug_far": 300,
+ "occlusion_debug_near": 10,
+ "occlusion_debug_opacity": 0.2
+}

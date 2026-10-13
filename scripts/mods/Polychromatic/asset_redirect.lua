@@ -1,6 +1,7 @@
-local LIB_VERSION = 2
+local LIB_VERSION = 3
 local INSTANCE_KEY = "__asset_redirect_instance"
 local CDEF_TYPE = "AssetRedirect_CDEF"
+local INSTALLED_CDEF_TYPE = "AssetRedirect_INSTALLED_CDEF"
 local DLL_NAME = "asset-redirect.dll"
 local TEXT_CAP = 2048
 local STATS_CAP = 262144
@@ -92,6 +93,7 @@ local CDEF = [[
 ]]
 
 local MODULE_CDEF = "void* GetModuleHandleA(const char* name);"
+local INSTALLED_CDEF = "typedef struct { int unused; } AssetRedirect_INSTALLED_CDEF; int AssetRedirect_Installed(void);"
 
 local STATE_ORDER = { "active", "shared", "compatible", "displaced", "refused", "restart_required", "unavailable", "pending" }
 
@@ -198,6 +200,10 @@ local function load_native(candidate)
 		ffi.cdef(MODULE_CDEF)
 	end
 
+	if not pcall(ffi.typeof, INSTALLED_CDEF_TYPE) then
+		ffi.cdef(INSTALLED_CDEF)
+	end
+
 	local path = "../mods/" .. candidate.folder .. "/bin/" .. DLL_NAME
 
 	if ffi.C.GetModuleHandleA(DLL_NAME) ~= nil then
@@ -211,6 +217,14 @@ local function load_native(candidate)
 		fail_native(mod, tostring(lib))
 
 		return
+	end
+
+	if instance.late then
+		local probed, installed = pcall(function() return lib.AssetRedirect_Installed() end)
+
+		if probed and installed == 0 then
+			instance.late = false
+		end
 	end
 
 	local err = text_buffer(TEXT_CAP)

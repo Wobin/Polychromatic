@@ -3,6 +3,7 @@
 .gitignore      export-ignore
 .vscode/        export-ignore
 docs/           export-ignore
+tools/          export-ignore
 README.md       export-ignore
 LICENSE         export-ignore
 * -text

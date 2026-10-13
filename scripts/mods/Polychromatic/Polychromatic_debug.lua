@@ -1,10 +1,9 @@
 return function(context)
 	local mod = context.mod
 	local REDIRECTS = context.redirects
-	local PAYLOAD_DIR = context.payload_dir
+	local PAYLOAD_ROOT = context.payload_root
 	local SOUL_SLOTS = context.soul_slots
 	local GLOW_SLOTS = context.glow_slots
-	local EXTENDED_PACKAGES = context.extended_packages
 	local SETS = context.sets
 	local asset_redirect = context.asset_redirect
 	local redirect_handles = context.redirect_handles
@@ -12,9 +11,6 @@ return function(context)
 	local profile_for = context.profile_for
 	local redshift_owns_sniper = context.redshift_owns_sniper
 	local effect_stats = context.effect_stats
-	local soul_load_ids = context.soul_load_ids
-	local glow_load_ids = context.glow_load_ids
-	local extended_load_ids = context.extended_load_ids
 
 	local _bundle_redirects = {}
 	local _logged_loads = {}
@@ -101,9 +97,9 @@ return function(context)
 		local entry = REDIRECTS[index]
 		local state = asset_redirect and asset_redirect.state(redirect_handles[index]) or "no library"
 		local lua_io = lua.io
-		local payload_size = lua_io and file_size(lua_io, PAYLOAD_DIR .. entry.file)
+		local payload_size = PAYLOAD_ROOT and entry.module and lua_io and file_size(lua_io, PAYLOAD_ROOT .. entry.module .. "/payload/" .. entry.file)
 
-		mod:info("redirected load: %s (bundle %s) by %s, prioritized %s, resident %s, state %s, payload size %s", package_name, bundle, tostring(reference_name), tostring(prioritize), tostring(use_resident_loading), tostring(state), tostring(payload_size))
+		mod:info("redirected load: %s (bundle %s) by %s, prioritized %s, resident %s, state %s, module %s, payload size %s", package_name, bundle, tostring(reference_name), tostring(prioritize), tostring(use_resident_loading), tostring(state), tostring(entry.module), tostring(payload_size))
 	end
 
 	local function native_stats(instance)
@@ -153,14 +149,83 @@ return function(context)
 		return by_stock
 	end
 
-	local function package_state(load_ids, package)
-		local id = load_ids[package]
+	local function module_report()
+		local registry = context.registry
 
-		if not id then
-			return "not requested"
+		if not registry then
+			return
 		end
 
-		return Managers.package:has_loaded_id(id) and "loaded" or "loading"
+		for _, manifest in ipairs(registry.modules) do
+			mod:info("check: module %s %s", tostring(manifest.id), tostring(manifest.version))
+		end
+
+		for _, entry in ipairs(registry.skipped) do
+			mod:info("check: module %s not loaded: %s", tostring(entry.id), tostring(entry.reason))
+		end
+
+		if #registry.modules == 0 then
+			mod:info("check: no modules installed")
+		end
+
+		local loaded = context.engines_loaded or {}
+		local disabled = context.engines_disabled or {}
+		local names = {}
+
+		for name in pairs(registry.engines) do
+			names[#names + 1] = name
+		end
+
+		table.sort(names)
+
+		for _, name in ipairs(names) do
+			local from = {}
+
+			for _, entry in ipairs(registry.engines[name]) do
+				from[#from + 1] = tostring(entry.module)
+			end
+
+			local known = not context.engine_known or context.engine_known(name)
+			local status = not known and "unknown engine" or loaded[name] ~= nil and "loaded" or disabled[name] and "disabled (" .. disabled[name] .. ")" or "not built"
+
+			mod:info("check: engine %s %s, from %s", name, status, table.concat(from, ", "))
+		end
+
+		local required = {}
+
+		for name in pairs(loaded) do
+			if not registry.engines[name] then
+				required[#required + 1] = name
+			end
+		end
+
+		for name in pairs(disabled) do
+			if not registry.engines[name] then
+				required[#required + 1] = name
+			end
+		end
+
+		table.sort(required)
+
+		for _, name in ipairs(required) do
+			local status = loaded[name] ~= nil and "loaded" or "disabled (" .. tostring(disabled[name]) .. ")"
+
+			mod:info("check: engine %s %s, required by another engine", name, status)
+		end
+
+		local gaps = context.routing_gaps and context.routing_gaps() or {}
+
+		table.sort(gaps, function(a, b)
+			return a.module .. a.set < b.module .. b.set
+		end)
+
+		for _, gap in ipairs(gaps) do
+			mod:info("check: module %s ships %s effects but %s is not loaded; they stay untinted", tostring(gap.module), tostring(gap.set), tostring(gap.engine))
+		end
+
+		for _, package in ipairs(registry.packages) do
+			mod:info("check: package %s from %s", tostring(package.name), tostring(package.module))
+		end
 	end
 
 	local function check_setup(quiet, once)
@@ -185,12 +250,22 @@ return function(context)
 
 		mod:info("check: Polychromatic %s, sub state %s, gameplay gate %s, file access %s", tostring(mod.version), tostring(sub_state), tostring(flags.gameplay_running), tostring(lua ~= nil and lua.ffi ~= nil and lua.io ~= nil))
 
+		module_report()
+
 		if not instance then
 			mod:info("check: asset redirect library not present")
 		else
 			local lib_version = asset_redirect and asset_redirect.version() or "none"
 
 			mod:info("check: asset redirect library %s, dll %s, native %s, late %s, newer %s, error %s", tostring(lib_version), tostring(instance.dll_version), tostring(instance.native_state), tostring(instance.late), tostring(instance.newer_available), tostring(instance.native_error))
+		end
+
+		if context.colour_channels then
+			local lines = context.colour_channels()
+
+			for i = 1, #lines do
+				mod:info("check: colour channel %s", lines[i])
+			end
 		end
 
 		local stats = native_stats(instance)
@@ -235,7 +310,7 @@ return function(context)
 				served = served + 1
 			end
 
-			mod:info("check: redirect %s -> %s: %s, winner %s, opens %s, finds %s, attrs %s, reason %s", entry.stock, entry.file, state, tostring(owner), tostring(dll and dll.opens), tostring(dll and dll.finds), tostring(dll and dll.attrs), tostring(handle and handle.reason))
+			mod:info("check: redirect %s -> %s from %s: %s, winner %s, opens %s, finds %s, attrs %s, reason %s", entry.stock, entry.file, tostring(entry.module), state, tostring(owner), tostring(dll and dll.opens), tostring(dll and dll.finds), tostring(dll and dll.attrs), tostring(handle and handle.reason))
 		end
 
 		local summary = {}
@@ -252,21 +327,15 @@ return function(context)
 			for i = 1, #SOUL_SLOTS do
 				local slot = SOUL_SLOTS[i]
 
-				mod:info("check: soul slot %s usable %s, package %s", slot.package, tostring(slot.usable), package_state(soul_load_ids, slot.package))
+				mod:info("check: soul slot %d (%s) usable %s", i, slot.package, tostring(slot.usable))
 			end
 
 			for kind, list in pairs(GLOW_SLOTS) do
 				for i = 1, #list do
 					local slot = list[i]
 
-					mod:info("check: glow slot %s %s usable %s, package %s", kind, slot.package, tostring(slot.usable), package_state(glow_load_ids, slot.package))
+					mod:info("check: glow slot %s %d (%s) usable %s", kind, i, slot.package, tostring(slot.usable))
 				end
-			end
-
-			for i = 1, #EXTENDED_PACKAGES do
-				local entry = EXTENDED_PACKAGES[i]
-
-				mod:info("check: extended package %s: %s", entry.package, package_state(extended_load_ids, entry.package))
 			end
 		end
 
@@ -316,7 +385,7 @@ return function(context)
 			return
 		end
 
-		mod:echo("Polychromatic %s: redirect library %s, redirects %d of %d served, %d effects seen. Details are in the console log.", tostring(mod.version), native_ok and "loaded" or "NOT loaded", served, total, #effects)
+		mod:echo("Polychromatic %s: %d modules, redirect library %s, redirects %d of %d served, %d effects seen. Details are in the console log.", tostring(mod.version), context.registry and #context.registry.modules or 0, native_ok and "loaded" or "NOT loaded", served, total, #effects)
 
 		if not native_ok then
 			mod:echo("The asset-redirect.dll in Polychromatic/bin did not load (%s), so only las beams can be recoloured. Check it exists and was not quarantined by antivirus.", tostring(instance and instance.native_error))

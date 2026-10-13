@@ -1,0 +1,38 @@
+return {
+	api = 1,
+	id = "guns",
+	label = "Guns",
+	version = "1.0.0",
+	sources = {
+		{
+			id = "flamer", categories = { "mine", "team" }, label = "Flamer", description = "Zealot flamer streams and wall impacts.",
+			widgets = {
+				{ setting_id = "flamer_burn", type = "checkbox", default_value = true },
+			},
+		},
+		{ id = "las", categories = { "mine", "team" }, label = "Las weapons", description = "Las beams, muzzle flashes and impacts for lasguns, laspistols and the Helbore." },
+		{ id = "phosphor", categories = { "mine", "team" }, label = "Phosphor pistol", description = "Phosphor pistol muzzle flash, hit impacts, the backblast on each enemy hit and the magazine glow. The shot trail and the burn stay stock." },
+		{ id = "plasma", categories = { "mine", "team" }, label = "Plasma gun", description = "Plasma gun muzzle, charge, overcharge vents, beams, impacts and charged explosions, plus the barrel fins cold and hot. The heat gauge stays stock." },
+	},
+	packages = { "guns_burn", "guns_flame", "guns_glow", "guns_las", "guns_phosphor", "guns_plasma" },
+	engines = { "live_tint", "colour_channels", "burn", "weapon_glow", "bolt_palettes", "scene_lights" },
+	data = {
+		redirects = "redirects",
+		las_redirects = "las_redirects",
+		burn_redirects = "burn_redirects",
+		glow_redirects = "glow_redirects",
+		glow_slots = "glow_slots",
+		direct_effects = "direct_effects",
+		spawn_vector_clouds = "spawn_vector_clouds",
+		encoded_effects = "encoded_effects",
+		glow_particle_palettes = "glow_particle_palettes",
+		burn_palettes = "burn_palettes",
+		plasma_fins = "plasma_fins",
+		plasma_trail_slots = "plasma_trail_slots",
+		ca_palettes = "palettes",
+		ca_assets = "ca_assets",
+		burn = "burn",
+		weapon_glow = "weapon_glow",
+		scene_lights = "scene_lights",
+	},
+}
