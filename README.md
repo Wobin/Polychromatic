@@ -8,8 +8,8 @@ Polychromatic is a base mod plus six optional modules. The base changes nothing 
 
 Pick one:
 
-- **Everything:** download `Polychromatic - Full.zip`. It holds the base and all six modules.
-- **Base plus the modules you want:** download `Polychromatic.zip` (the base), then each module zip you want. Unzip them all into your `mods` folder, so that each module lands in `mods/Polychromatic/modules/<module>/`.
+- **Everything:** download `Polychromatic.zip`. It holds the base and all six modules.
+- **Base plus the modules you want:** download `Polychromatic_Empty.zip` (the base), then each module zip you want. Unzip them all into your `mods` folder, so that each module lands in `mods/Polychromatic/modules/<module>/`.
 
 Either way you end with `mods/Polychromatic/Polychromatic.mod`. Add `Polychromatic` to `mod_load_order.txt` (or let your mod manager do it), after Redshift. Start the game once, then restart it so the effect packages load. Adding or removing a module needs one restart too, and the mod says so in chat.
 

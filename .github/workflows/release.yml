@@ -45,14 +45,24 @@ jobs:
     needs: package
     if: ${{ !github.event.release.prerelease }}
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       max-parallel: 1
       matrix:
         include: ${{ fromJSON(needs.package.outputs.matrix) }}
     steps:
+      - uses: actions/checkout@v7
+
       - name: Set version
-        run: echo "VERSION=${{ github.event.release.tag_name || inputs.version }}" >> "$GITHUB_ENV"
+        env:
+          RAW_VERSION: ${{ github.event.release.tag_name || inputs.version }}
+        run: |
+          if [[ ! "$RAW_VERSION" =~ ^[A-Za-z0-9.-]{1,50}$ ]]; then
+            echo "version \"$RAW_VERSION\" must be 1-50 characters of letters, digits, . and -" && exit 1
+          fi
+          echo "VERSION=$RAW_VERSION" >> "$GITHUB_ENV"
 
       - name: Download zips
         uses: actions/download-artifact@v7
@@ -70,24 +80,27 @@ jobs:
           if [ -z "$FID" ]; then echo "vars.NEXUS_FILE_IDS has no key \"$KEY\"" && exit 1; fi
           echo "NEXUS_FILE_ID=$FID" >> "$GITHUB_ENV"
 
-      - name: Resolve Nexus global mod id (v3)
+      - name: Resolve Nexus global mod id
+        if: ${{ matrix.key == 'Polychromatic' }}
+        env:
+          NEXUSMODS_APIKEY: ${{ secrets.NEXUSMODS_APIKEY }}
+          GAME_SCOPED_ID: ${{ vars.NEXUS_MOD_ID }}
         run: |
-          MID=$(curl -sS -H "apikey: ${{ secrets.NEXUSMODS_APIKEY }}" \
-            "https://api.nexusmods.com/v3/games/warhammer40kdarktide/mods/${{ vars.NEXUS_MOD_ID }}" \
-            | jq -r '.data.id')
-          if [ -z "$MID" ] || [ "$MID" = "null" ]; then echo "no global mod id" && exit 1; fi
+          MID=$(python3 .github/scripts/nexus.py resolve-mod --game warhammer40kdarktide --mod "$GAME_SCOPED_ID")
           echo "NEXUS_GLOBAL_MOD_ID=$MID" >> "$GITHUB_ENV"
 
       - name: Upload to Nexus Mods
-        uses: Nexus-Mods/upload-action@v1.0.0-beta.10
-        with:
-          api_key: ${{ secrets.NEXUSMODS_APIKEY }}
-          file_id: ${{ env.NEXUS_FILE_ID }}
-          mod_id: ${{ env.NEXUS_GLOBAL_MOD_ID }}
-          filename: dist/${{ matrix.file }}
-          version: ${{ env.VERSION }}
-          display_name: ${{ matrix.key == 'Full' && 'Polychromatic - Full' || (matrix.key == 'Polychromatic' && 'Polychromatic' || format('Polychromatic - {0}', matrix.key)) }} ${{ env.VERSION }}
-          category: ${{ matrix.category }}
-          description: ${{ github.event.release.body || inputs.changelog }}
-          changelog: ${{ github.event.release.body || inputs.changelog }}
-          update_mod_version: true
+        env:
+          NEXUSMODS_APIKEY: ${{ secrets.NEXUSMODS_APIKEY }}
+          ZIP: dist/${{ matrix.file }}
+          CATEGORY: ${{ matrix.category }}
+          DISPLAY_NAME: ${{ (matrix.key == 'Polychromatic' || matrix.key == 'Polychromatic_Empty') && matrix.key || format('Polychromatic - {0}', matrix.key) }}
+          NOTES: ${{ github.event.release.body || inputs.changelog }}
+          IS_FULL: ${{ matrix.key == 'Polychromatic' }}
+        run: |
+          set -- --file-id "$NEXUS_FILE_ID" --zip "$ZIP" --version "$VERSION" --category "$CATEGORY" \
+            --display-name "$DISPLAY_NAME $VERSION" --description="$NOTES" --update-mod-version
+          if [ "$IS_FULL" = "true" ] && [ -n "$NOTES" ]; then
+            set -- "$@" --mod-id "$NEXUS_GLOBAL_MOD_ID" --changelog="$NOTES"
+          fi
+          python3 .github/scripts/nexus.py upload "$@"

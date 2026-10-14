@@ -10,8 +10,8 @@ import zipfile
 from pathlib import Path
 
 ROOT = "Polychromatic"
-FULL = "Polychromatic - Full.zip"
-BASE = "Polychromatic.zip"
+FULL = "Polychromatic.zip"
+BASE = "Polychromatic_Empty.zip"
 FORBIDDEN = (".git", "install_stage", ".github")
 LABEL_RE = re.compile(r'^\s*label\s*=\s*"([^"]+)"', re.M)
 
@@ -107,8 +107,8 @@ def main():
     write_zip(out / FULL, files)
     base = {n: v for n, v in files.items() if not n.startswith(prefix)}
     write_zip(out / BASE, base)
-    matrix.append({"key": "Full", "file": FULL, "category": "main"})
-    matrix.append({"key": "Polychromatic", "file": BASE, "category": "main"})
+    matrix.append({"key": "Polychromatic", "file": FULL, "category": "main"})
+    matrix.append({"key": "Polychromatic_Empty", "file": BASE, "category": "main"})
     for mid in sorted(modules, key=lambda k: modules[k]):
         label = modules[mid]
         fname = "Polychromatic - %s.zip" % label
