@@ -35,8 +35,12 @@ end
 local function category_widget(source, category)
 	local prefix = source.id .. "_" .. category .. "_"
 
-	if source.no_rainbow and mod:get(prefix .. "mode") == "rainbow" then
+	local stored_mode = mod:get(prefix .. "mode")
+
+	if source.no_rainbow and stored_mode == "rainbow" then
 		mod:set(prefix .. "mode", "custom")
+	elseif source.no_hidden and stored_mode == "hidden" then
+		mod:set(prefix .. "mode", "stock")
 	end
 
 	return {
@@ -80,6 +84,35 @@ for _, category in ipairs({ "mine", "team" }) do
 	end
 end
 
+local RENAMED_SETTINGS = {
+	shield_damage_threshold = "shield_mine_damage_threshold",
+}
+
+for old_id, new_id in pairs(RENAMED_SETTINGS) do
+	local value = mod:get(old_id)
+
+	if value ~= nil then
+		if mod:get(new_id) == nil then
+			mod:set(new_id, value)
+		end
+
+		mod:set(old_id, nil)
+	end
+end
+
+local function module_widget(widget)
+	local copy = table.clone(widget)
+
+	copy.label = nil
+	copy.description = nil
+
+	for i, sub_widget in ipairs(copy.sub_widgets or {}) do
+		copy.sub_widgets[i] = module_widget(sub_widget)
+	end
+
+	return copy
+end
+
 local set_groups = {}
 local selector_options = {
 	{ text = "select_source", value = NO_SOURCE, show_widgets = {} },
@@ -95,7 +128,7 @@ for i = 1, #SOURCES do
 	end
 
 	for _, widget in ipairs(source.widgets or {}) do
-		sub_widgets[#sub_widgets + 1] = table.clone(widget)
+		sub_widgets[#sub_widgets + 1] = module_widget(widget)
 	end
 
 	set_groups[i] = { setting_id = group_id, type = "group", sub_widgets = sub_widgets }

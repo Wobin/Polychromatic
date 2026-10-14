@@ -19,7 +19,7 @@ return function(mod, core, data_list)
 		end
 
 		local unit_data = ScriptUnit.has_extension(unit, "unit_data_system")
-		local inventory = unit_data and unit_data:read_component("inventory")
+		local inventory = unit_data and unit_data.read_component and unit_data:read_component("inventory")
 		local slot = inventory and inventory.wielded_slot
 		local extension = slot and ScriptUnit.has_extension(unit, "visual_loadout_system")
 		local template = extension and extension.weapon_template_from_slot and extension:weapon_template_from_slot(slot)

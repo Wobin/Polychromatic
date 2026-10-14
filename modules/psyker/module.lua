@@ -16,7 +16,7 @@ return {
 					type = "checkbox",
 					default_value = false,
 					sub_widgets = {
-						{ setting_id = "shield_damage_threshold", type = "numeric", default_value = 50, range = { 1, 100 }, decimals_number = 0 },
+						{ setting_id = "shield_mine_damage_threshold", type = "numeric", default_value = 50, range = { 1, 100 }, decimals_number = 0 },
 						{ setting_id = "shield_mine_damaged_colour", type = "color", default_value = { 255, 255, 40, 20 }, has_alpha = false },
 					},
 				},

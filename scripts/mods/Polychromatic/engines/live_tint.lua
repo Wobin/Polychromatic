@@ -9,6 +9,7 @@ local SLOT_SCRIPT_SPAWNERS = {
 }
 
 local math_floor = math.floor
+local math_max = math.max
 local World = World
 local World_are_particles_playing = World.are_particles_playing
 local World_has_particles_material = World.has_particles_material
@@ -21,6 +22,7 @@ return function(mod, core, data_list)
 	local ENGINE = core.engines
 	local EFFECT_PACKAGES = core.EFFECT_PACKAGES
 	local BURN_PALETTES = core.burn_palettes
+	local BURN_PALETTE_SETS = core.burn_palette_sets or {}
 	local profile_for = core.profile_for
 	local player_category = core.player_category
 	local category_of_unit = core.category_of_unit
@@ -47,6 +49,7 @@ return function(mod, core, data_list)
 	local STEPS = {
 		code_divisor = 16384,
 		pending_tint_frames = 30,
+		package_prune_at = 512,
 	}
 	local MAX_CLOUDS = 16
 	local DIRECT_CLOUD = "beam"
@@ -95,10 +98,12 @@ return function(mod, core, data_list)
 
 	local _cloud_cache = {}
 	local _cloud_misses = {}
+	local _spawn_serial = {}
 
 	local function forget_particle(particle_id)
 		_cloud_cache[particle_id] = nil
 		_cloud_misses[particle_id] = nil
+		_spawn_serial[particle_id] = (_spawn_serial[particle_id] or 0) + 1
 	end
 
 	local function tint(world, particle_id, value)
@@ -307,6 +312,7 @@ return function(mod, core, data_list)
 			world = world,
 			world_name = world_name,
 			particle_id = particle_id,
+			serial = _spawn_serial[particle_id],
 			apply = apply,
 			first = first,
 			second = second,
@@ -327,7 +333,7 @@ return function(mod, core, data_list)
 
 			entry.frames = entry.frames + 1
 
-			if not world_manager or world_manager:world(entry.world_name) ~= entry.world then
+			if not world_manager or world_manager:world(entry.world_name) ~= entry.world or _spawn_serial[entry.particle_id] ~= entry.serial then
 				entry.stat.expired = entry.stat.expired + 1
 				table.remove(_pending_tints, i)
 			elseif entry.apply(entry.world, entry.particle_id, entry.first, entry.second, entry.third) then
@@ -357,14 +363,16 @@ return function(mod, core, data_list)
 	local _burn_palette_ready = {}
 
 	local function burn_palette_name(effect_name)
-		local palette = BURN_PALETTES[effect_name]
-		local profile = palette and state.spawn_context_active and state.spawn_context[effect_name]
+		local profile = BURN_PALETTES[effect_name] and state.spawn_context_active and state.spawn_context[effect_name]
 
 		if not profile or profile.mode == "stock" or profile.mode == "hidden" then
 			return nil
 		end
 
-		if not resource_ready(_burn_palette_ready, palette, "particles", palette[1]) then
+		local palettes = BURN_PALETTE_SETS[profile.set]
+		local palette = palettes and palettes[effect_name]
+
+		if not palette or not resource_ready(_burn_palette_ready, palette, "particles", palette[1]) then
 			return nil
 		end
 
@@ -377,6 +385,99 @@ return function(mod, core, data_list)
 		end
 
 		return palette[math_floor(hue * #palette + 0.5) % #palette + 1]
+	end
+
+	local _package_names = {}
+	local _package_particles = {}
+
+	for _, entry in pairs(core.palettes or {}) do
+		for _, owned in pairs(type(entry) == "table" and type(entry.owners) == "table" and entry.owners or {}) do
+			for _, name in ipairs(type(owned) == "table" and owned.names or {}) do
+				_package_names[name] = true
+			end
+		end
+	end
+
+	for _, palettes in pairs(BURN_PALETTE_SETS) do
+		for _, list in pairs(palettes) do
+			for _, name in ipairs(list) do
+				_package_names[name] = true
+			end
+		end
+	end
+
+	for _, entry in pairs(core.data("glow_particle_palettes") or {}) do
+		for _, name in ipairs(type(entry) == "table" and entry.names or {}) do
+			_package_names[name] = true
+		end
+	end
+
+	local function prune_package_particles(world, tracked)
+		local live = 0
+
+		for particle_id in pairs(tracked.ids) do
+			if World_are_particles_playing(world, particle_id) then
+				live = live + 1
+			else
+				tracked.ids[particle_id] = nil
+			end
+		end
+
+		tracked.count = live
+		tracked.prune_at = math_max(STEPS.package_prune_at, live * 2)
+
+		return live
+	end
+
+	local function track_package_particle(world, particle_id, packaged)
+		local tracked = _package_particles[world]
+
+		if not packaged then
+			if tracked and tracked.ids[particle_id] then
+				tracked.ids[particle_id] = nil
+				tracked.count = tracked.count - 1
+			end
+
+			return
+		end
+
+		if not tracked then
+			local world_manager = Managers.world
+
+			tracked = { world_name = world_manager and world_manager:world_name(world), ids = {}, count = 0, prune_at = STEPS.package_prune_at }
+			_package_particles[world] = tracked
+		end
+
+		if not tracked.ids[particle_id] then
+			tracked.ids[particle_id] = true
+			tracked.count = tracked.count + 1
+
+			if tracked.count >= tracked.prune_at then
+				prune_package_particles(world, tracked)
+			end
+		end
+	end
+
+	local function forget_dead_worlds(world_manager)
+		for world, tracked in pairs(_package_particles) do
+			if world_manager and tracked.world_name and world_manager:world(tracked.world_name) ~= world then
+				_package_particles[world] = nil
+			end
+		end
+	end
+
+	local function package_particles_in_use()
+		local world_manager = Managers.world
+
+		forget_dead_worlds(world_manager)
+
+		for world, tracked in pairs(_package_particles) do
+			if not world_manager or not tracked.world_name or prune_package_particles(world, tracked) > 0 then
+				return true
+			end
+		end
+
+		return false
 	end
 
 	local function no_substitute()
@@ -442,6 +543,7 @@ return function(mod, core, data_list)
 
 		if particle_id then
 			forget_particle(particle_id)
+			track_package_particle(world, particle_id, spawn_name ~= effect_name or _package_names[spawn_name] == true)
 		end
 
 		if spawn_name ~= effect_name then
@@ -548,15 +650,88 @@ return function(mod, core, data_list)
 	local _slot_script_owners = setmetatable({}, { __mode = "k" })
 	local _slot_script_units = setmetatable({}, { __mode = "k" })
 
+	local function extension_unit(extension)
+		local unit = type(extension) == "table" and not rawget(extension, "__deleted") and extension._unit
+
+		return unit or nil
+	end
+
+	local function loadout_holder(slot_script)
+		local player_manager = Managers.player
+
+		if not player_manager or rawget(player_manager, "__deleted") or not player_manager.players then
+			return nil
+		end
+
+		for _, player in pairs(player_manager:players() or {}) do
+			local unit = player.player_unit
+			local extension = unit and Unit.alive(unit) and ScriptUnit.has_extension(unit, "visual_loadout_system")
+			local by_slot = extension and extension._wieldable_slot_scripts
+
+			if type(by_slot) == "table" then
+				for _, scripts in pairs(by_slot) do
+					for i = 1, #scripts do
+						if scripts[i] == slot_script then
+							return unit
+						end
+					end
+				end
+			end
+		end
+
+		return nil
+	end
+
+	local function slot_script_unit(slot_script)
+		local unit = _slot_script_units[slot_script]
+
+		if unit == nil then
+			unit = slot_script._owner_unit or extension_unit(slot_script._fx_extension) or extension_unit(slot_script._visual_loadout_extension) or loadout_holder(slot_script) or false
+			_slot_script_units[slot_script] = unit
+		end
+
+		return unit or nil
+	end
+
 	local function slot_script_category(slot_script)
 		local category = _slot_script_owners[slot_script]
 
-		if type(category) ~= "string" then
-			category = player_category(category or slot_script._owner_unit)
+		if category == nil then
+			category = player_category(slot_script_unit(slot_script))
 			_slot_script_owners[slot_script] = category
 		end
 
 		return category
+	end
+
+	local function remember_slot_script(self, context)
+		_slot_script_units[self] = context and context.owner_unit or nil
+		_slot_script_owners[self] = nil
+	end
+
+	local function slot_script_owner(self)
+		local category = slot_script_category(self)
+
+		return slot_script_unit(self), category
+	end
+
+	local function track_link_spawn(self)
+		local effects = self._effects
+		local entry = effects and effects[self._num_effects]
+		local effect_id = entry and entry.effect_id
+
+		if effect_id then
+			forget_particle(effect_id)
+		end
+	end
+
+	local FxData = CLASS.FxData
+
+	if type(FxData) == "string" or type(FxData) == "table" and type(FxData.spawn_vfx) == "function" and type(FxData.spawn_vfx_world_position) == "function" then
+		mod:hook_safe(FxData, "spawn_vfx", track_link_spawn)
+		mod:hook_safe(FxData, "spawn_vfx_world_position", track_link_spawn)
+	else
+		mod:info("live tint: chain lightning link spawns are not tracked, FxData spawn methods not found")
 	end
 
 	local DECAL_SWAP = ENGINE.decal_swap
@@ -565,19 +740,10 @@ return function(mod, core, data_list)
 	}
 
 	for class_name, methods in pairs(SLOT_SCRIPT_SPAWNERS) do
-		mod:hook_safe(CLASS[class_name], "init", function(self, context)
-			_slot_script_owners[self] = context and context.owner_unit
-			_slot_script_units[self] = context and context.owner_unit
-		end)
+		mod:hook_safe(CLASS[class_name], "init", remember_slot_script)
 
 		for i = 1, #methods do
-			local after = SLOT_SCRIPT_AFTER[class_name]
-
-			register_owner_hook(CLASS[class_name], methods[i], function(self)
-				local category = slot_script_category(self)
-
-				return _slot_script_units[self] or self._owner_unit, category
-			end, after)
+			register_owner_hook(CLASS[class_name], methods[i], slot_script_owner, SLOT_SCRIPT_AFTER[class_name])
 		end
 	end
 
@@ -723,6 +889,10 @@ return function(mod, core, data_list)
 				retry_pending_tints()
 			end
 		end,
-		clear = clear_pending_tints,
+		clear = function()
+			clear_pending_tints()
+			forget_dead_worlds(Managers.world)
+		end,
+		in_use = package_particles_in_use,
 	}
 end

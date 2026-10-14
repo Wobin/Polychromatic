@@ -63,6 +63,16 @@ local function module_redirect_groups(kinds)
 	return groups
 end
 
+local function has_source(id)
+	for _, source in ipairs(REGISTRY.sources) do
+		if source.id == id then
+			return true
+		end
+	end
+
+	return false
+end
+
 local function data_module(kind)
 	for _, manifest in ipairs(REGISTRY.modules) do
 		if manifest.data and manifest.data[kind] then
@@ -73,11 +83,28 @@ local function data_module(kind)
 	return nil
 end
 
-local REDIRECTS, REDIRECT_CONFLICTS = REGISTRY.merge_redirects(module_redirect_groups({ "redirects", "las_redirects", "burn_redirects", "glow_redirects" }))
+local PAYLOAD_STAT = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/file_stat").stat
+local MODULES_ROOT = "../mods/" .. (mod:get_internal_data("load_order_name") or mod:get_name()) .. "/modules/"
 
-for _, conflict in ipairs(REDIRECT_CONFLICTS) do
-	mod:info("redirect conflict: %s from %s (%s)", conflict.stock, conflict.module, conflict.reason)
+local function payload_identity(entry, module_id)
+	if not PAYLOAD_STAT or type(module_id) ~= "string" then
+		return nil
+	end
+
+	return (PAYLOAD_STAT(MODULES_ROOT .. module_id .. "/payload/" .. entry.file))
 end
+
+local function merge_redirect_groups(groups, into)
+	local merged, conflicts = REGISTRY.merge_redirects(groups, payload_identity, into)
+
+	for _, conflict in ipairs(conflicts) do
+		mod:info("redirect conflict: %s from %s (%s)", conflict.stock, tostring(conflict.module), conflict.reason)
+	end
+
+	return merged
+end
+
+local REDIRECTS = merge_redirect_groups(module_redirect_groups({ "redirects", "las_redirects", "burn_redirects", "glow_redirects" }))
 
 startup_detail.lap("other", "merge")
 
@@ -92,6 +119,7 @@ end
 local BAKE_KINDS = {
 	soul = { "soul_slots" },
 	burn = { "burn_palettes" },
+	skull_burn = { "skull_burn_palettes" },
 	glow = { "glow_redirects", "glow_slots" },
 	plasma = { "plasma_trail_slots" },
 }
@@ -122,6 +150,10 @@ local baked = bake_module() and mod:io_dofile("Polychromatic/scripts/mods/Polych
 	bake_module = bake_module,
 	detail = startup_detail,
 	redirects = REDIRECTS,
+	merge = function(groups)
+		merge_redirect_groups(groups, REDIRECTS)
+	end,
+	has_source = has_source,
 	soul_slots = SOUL_SLOTS,
 	min_brightness = MIN_BRIGHTNESS_STEP,
 	stock_brightness = STOCK_BRIGHTNESS_STEP,
@@ -133,12 +165,11 @@ file_timer.lap("bake")
 startup_detail.mark()
 
 local asset_redirect = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/asset_redirect")
-local _material_format = { expected = 62, probe = "../bundle/data/e9/e90383bc561fd9ae" }
 
-do
+local function probe_material_format(format)
 	local lua = rawget(_G, "Mods") and Mods.lua
 	local lua_io = lua and lua.io
-	local file = lua_io and lua_io.open(_material_format.probe, "rb")
+	local file = lua_io and lua_io.open(format.probe, "rb")
 	local head = file and file:read(4)
 
 	if file then
@@ -148,19 +179,25 @@ do
 	if head and #head == 4 then
 		local b1, b2, b3, b4 = string.byte(head, 1, 4)
 
-		_material_format.found = b1 + b2 * 256 + b3 * 65536 + b4 * 16777216
+		format.found = b1 + b2 * 256 + b3 * 65536 + b4 * 16777216
 	end
 
-	_material_format.ok = _material_format.found == _material_format.expected
+	format.missing = format.found == nil
+	format.ok = format.found == format.expected
 
-	if not _material_format.ok then
-		if asset_redirect then
-			asset_redirect.clear(mod)
-		end
-
-		asset_redirect = nil
-	end
+	return format
 end
+
+local _material_format = probe_material_format({ expected = 62, probe = "../bundle/data/e9/e90383bc561fd9ae" })
+
+if not _material_format.ok then
+	if asset_redirect then
+		asset_redirect.clear(mod)
+	end
+
+	asset_redirect = nil
+end
+
 local _redirect_handles = {}
 
 startup_detail.lap("other", "redirect lib")
@@ -457,7 +494,14 @@ end
 
 startup_detail.mark()
 
-local BURN_PALETTES = module_data("burn_palettes")
+local BURN_PALETTE_SETS = { flamer = module_data("burn_palettes"), skull = module_data("skull_burn_palettes") }
+local BURN_PALETTES = {}
+
+for _, palettes in pairs(BURN_PALETTE_SETS) do
+	for effect_name in pairs(palettes) do
+		BURN_PALETTES[effect_name] = true
+	end
+end
 
 startup_detail.lap("other", "burn data")
 
@@ -493,6 +537,7 @@ end
 file_timer.mark()
 startup_detail.mark()
 
+mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/cleanup_guard")(mod)
 EFFECT_PACKAGES = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/effect_packages")(mod, module_data, REGISTRY.modules)
 startup_detail.lap("engines", "packages")
 
@@ -525,6 +570,8 @@ local _, ENGINE_DISABLED = ENGINE_LIB.load(mod, REGISTRY, {
 	glow_slots = GLOW_SLOTS,
 	glow_source_effects = baked.glow_source_effects,
 	burn_palettes = BURN_PALETTES,
+	burn_palette_sets = BURN_PALETTE_SETS,
+	murmur_preimage = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/murmur_preimage"),
 	live_settings = function()
 		return EFFECT_PACKAGES.render_settings()
 	end,
@@ -572,175 +619,23 @@ local _, ENGINE_DISABLED = ENGINE_LIB.load(mod, REGISTRY, {
 
 file_timer.lap("engines")
 
-mod.update = function(dt)
-	EFFECT_PACKAGES.update()
+local REDIRECT_WAIT_CAP_SECONDS = 10
+local _redirects_waiting = false
+local _redirects_waited = 0
+local _redirects_settled = false
+local _redirects_capped = false
+local _restart_told = false
+local _setup_after_settle = false
+local _packages_started = false
+local diagnostics = nil
 
-	if ENGINE.weapon_glow then
-		ENGINE.weapon_glow.update(dt or 0)
-	end
+local function settle_redirects()
+	local first_settle = not _redirects_settled
 
-	if ENGINE.colour_channels then
-		ENGINE.colour_channels.update(dt or 0)
-	end
-
-	if ENGINE.scene_lights then
-		ENGINE.scene_lights.update()
-	end
-
-	if ENGINE.live_tint then
-		ENGINE.live_tint.update()
-	end
-end
-
-mod.on_game_state_changed = function(status, state_name)
-	local gameplay_init = state_name == "GameplayStateRun"
-		or string.sub(state_name or "", 1, 12) == "GameplayInit"
-
-	if status == "enter" then
-		STATE.gameplay_running = state_name == "GameplayStateRun"
-	elseif state_name == "StateGameplay" or state_name == "GameplayStateRun" then
-		STATE.gameplay_running = false
-	end
-
-	if not gameplay_init then
-		if ENGINE.live_tint then
-			ENGINE.live_tint.clear()
-		end
-
-		if ENGINE.pools then
-			ENGINE.pools.clear()
-		end
-	end
-
-	if status == "exit" and state_name == "StateGameplay" and ENGINE.scene_lights then
-		ENGINE.scene_lights.clear()
-	end
-
-	if status == "enter" and state_name == "GameplayStateRun" and ENGINE.colour_channels then
-		ENGINE.colour_channels.write(true)
-	end
-
-end
-
-mod.on_settings_reset = function()
-	cache_settings()
-end
-
-startup_detail.mark()
-cache_settings()
-startup_detail.lap("other", "settings")
-
-local diagnostics = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychromatic_debug")({
-	mod = mod,
-	redirects = REDIRECTS,
-	payload_root = "../mods/" .. (mod:get_internal_data("load_order_name") or mod:get_name()) .. "/modules/",
-	soul_slots = SOUL_SLOTS,
-	glow_slots = GLOW_SLOTS,
-	sets = SETS,
-	asset_redirect = asset_redirect,
-	redirect_handles = _redirect_handles,
-	redirect_served = redirect_served,
-	profile_for = profile_for,
-	redshift_owns_sniper = redshift_owns_sniper,
-	effect_stats = _effect_stats,
-	registry = REGISTRY,
-	engines_loaded = ENGINE,
-	engines_disabled = ENGINE_DISABLED,
-	engine_known = ENGINE_LIB.known,
-	routing_gaps = function()
-		local gaps, seen = {}, {}
-
-		for _, manifest in ipairs(REGISTRY.modules) do
-			for _, kind in ipairs({ "encoded_effects", "ca_palettes", "glow_particle_palettes" }) do
-				local part = module_data_file(manifest, kind)
-
-				for _, entry in pairs(type(part) == "table" and part or {}) do
-					local set_id = type(entry) == "table" and entry.set or entry
-					local engine = set_id == "force_staff" and "staff_routing" or set_id == "psyker_blitz" and "blitz_routing" or nil
-					local key = engine and manifest.id .. "/" .. set_id
-
-					if engine and not ENGINE[engine] and not seen[key] then
-						seen[key] = true
-						gaps[#gaps + 1] = { module = manifest.id, set = set_id, engine = engine }
-					end
-				end
-			end
-		end
-
-		return gaps
-	end,
-	colour_channels = function()
-		return ENGINE.colour_channels and ENGINE.colour_channels.report() or {}
-	end,
-	flags = function()
-		return {
-			gameplay_running = STATE.gameplay_running,
-			burn_patch_served = _burn_patch_served,
-			soulblaze = _soulblaze_enabled,
-			flamer_burn = _flamer_burn_enabled,
-			skull_burn = _skull_burn_enabled,
-			debug_logging = _debug_logging,
-		}
-	end,
-})
-
-startup_detail.lap("other", "diagnostics")
-
-if REDIRECTS[1] then
-	mod:hook_safe(CLASS.PackageManager, "load", function(self, package_name, reference_name, callback, prioritize, use_resident_loading)
-		if _debug_logging then
-			diagnostics.package_loaded(package_name, reference_name, prioritize, use_resident_loading)
-		end
-	end)
-end
-
-mod:command("poly_check", mod:localize("poly_check_description"), function()
-	diagnostics.check_setup(false)
-end)
-
-local OPTIONS_LABELS = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/options_labels")(mod, {
-	redshift_owns_sniper = redshift_owns_sniper,
-	package_label_key = function()
-		return EFFECT_PACKAGES.label_key()
-	end,
-})
-
-EFFECT_PACKAGES.set_relabel(OPTIONS_LABELS.sync_package_label)
-startup_detail.lap("other", "labels")
-
-mod.toggle_effect_packages = function()
-	EFFECT_PACKAGES.toggle(OPTIONS_LABELS.sync_package_label)
-
-	if EFFECT_PACKAGES.busy() then
-		OPTIONS_LABELS.sync_package_label()
-	end
-end
-
-mod.on_all_mods_loaded = function()
-	local load_timer = STARTUP.start()
-
-	mod:info("Polychromatic %s loaded", tostring(mod.version))
-
-	local ui = Managers.ui
-	local in_level = ui ~= nil and ui:get_current_sub_state_name() == "GameplayStateRun"
-
-	STATE.gameplay_running = in_level
-
-	if not _material_format.ok then
-		mod:info("game material format %s, payload built for %s: every patched file stays stock", tostring(_material_format.found), tostring(_material_format.expected))
-		mod:echo(mod:localize("game_format_changed"))
-	end
-
-	load_timer.mark()
-
-	if not asset_redirect then
-		load_timer.lap("redirect commit")
-	end
+	_redirects_waiting = false
+	_redirects_settled = true
 
 	if asset_redirect then
-		asset_redirect.commit()
-		load_timer.lap("redirect commit")
-
 		local served = 0
 		local restart = false
 
@@ -824,9 +719,217 @@ mod.on_all_mods_loaded = function()
 			mod:info("las glow slots usable: %d of %d", glow_usable, glow_total)
 		end
 
-		if restart then
-			mod:echo(mod:localize("restart_required"))
+		if restart and not _restart_told then
+			_restart_told = true
+			mod:echo("%s", mod:localize("restart_required"))
 		end
+
+		local verify_ms, verify_hashed, verify_pinned = asset_redirect.verified()
+
+		if verify_ms then
+			mod:info("redirects verified off the main thread in %.1f ms (%.0f bytes hashed, %.0f pinned)", verify_ms, verify_hashed or 0, verify_pinned or 0)
+		end
+	end
+
+	if first_settle and _packages_started then
+		EFFECT_PACKAGES.acquire()
+	end
+
+	if _setup_after_settle and not _redirects_capped then
+		_setup_after_settle = false
+		diagnostics.check_setup(true, true)
+	end
+end
+
+mod.update = function(dt)
+	EFFECT_PACKAGES.update()
+
+	if _redirects_waiting then
+		_redirects_waited = _redirects_waited + (dt or 0)
+
+		if asset_redirect.ready() then
+			settle_redirects()
+		elseif _redirects_waited >= REDIRECT_WAIT_CAP_SECONDS then
+			mod:info("redirect verification did not finish within %d s: using what was verified, the rest stays stock", REDIRECT_WAIT_CAP_SECONDS)
+			_redirects_capped = true
+			settle_redirects()
+		end
+	elseif _redirects_capped and asset_redirect.ready() then
+		_redirects_capped = false
+		settle_redirects()
+	end
+
+	if ENGINE.weapon_glow then
+		ENGINE.weapon_glow.update(dt or 0)
+	end
+
+	if ENGINE.colour_channels then
+		ENGINE.colour_channels.update(dt or 0)
+	end
+
+	if ENGINE.scene_lights then
+		ENGINE.scene_lights.update()
+	end
+
+	if ENGINE.live_tint then
+		ENGINE.live_tint.update()
+	end
+end
+
+mod.on_game_state_changed = function(status, state_name)
+	local gameplay_init = state_name == "GameplayStateRun"
+		or string.sub(state_name or "", 1, 12) == "GameplayInit"
+
+	if status == "enter" then
+		STATE.gameplay_running = state_name == "GameplayStateRun"
+	elseif state_name == "StateGameplay" or state_name == "GameplayStateRun" then
+		STATE.gameplay_running = false
+	end
+
+	if not gameplay_init then
+		if ENGINE.live_tint then
+			ENGINE.live_tint.clear()
+		end
+
+		if ENGINE.pools then
+			ENGINE.pools.clear()
+		end
+	end
+
+	if status == "exit" and state_name == "StateGameplay" and ENGINE.scene_lights then
+		ENGINE.scene_lights.clear()
+	end
+
+	if status == "enter" and state_name == "GameplayStateRun" and ENGINE.colour_channels then
+		ENGINE.colour_channels.write(true)
+	end
+
+end
+
+mod.on_settings_reset = function()
+	cache_settings()
+end
+
+startup_detail.mark()
+cache_settings()
+startup_detail.lap("other", "settings")
+
+diagnostics = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychromatic_debug")({
+	mod = mod,
+	redirects = REDIRECTS,
+	payload_root = MODULES_ROOT,
+	soul_slots = SOUL_SLOTS,
+	glow_slots = GLOW_SLOTS,
+	sets = SETS,
+	asset_redirect = asset_redirect,
+	redirect_handles = _redirect_handles,
+	redirect_served = redirect_served,
+	profile_for = profile_for,
+	redshift_owns_sniper = redshift_owns_sniper,
+	effect_stats = _effect_stats,
+	registry = REGISTRY,
+	engines_loaded = ENGINE,
+	engines_disabled = ENGINE_DISABLED,
+	engine_known = ENGINE_LIB.known,
+	routing_gaps = function()
+		local gaps, seen = {}, {}
+
+		for _, manifest in ipairs(REGISTRY.modules) do
+			for _, kind in ipairs({ "encoded_effects", "ca_palettes", "glow_particle_palettes" }) do
+				local part = module_data_file(manifest, kind)
+
+				for _, entry in pairs(type(part) == "table" and part or {}) do
+					local set_id = type(entry) == "table" and entry.set or entry
+					local engine = set_id == "force_staff" and "staff_routing" or set_id == "psyker_blitz" and "blitz_routing" or nil
+					local key = engine and manifest.id .. "/" .. set_id
+
+					if engine and not ENGINE[engine] and not seen[key] then
+						seen[key] = true
+						gaps[#gaps + 1] = { module = manifest.id, set = set_id, engine = engine }
+					end
+				end
+			end
+		end
+
+		return gaps
+	end,
+	colour_channels = function()
+		return ENGINE.colour_channels and ENGINE.colour_channels.report() or {}
+	end,
+	flags = function()
+		return {
+			gameplay_running = STATE.gameplay_running,
+			burn_patch_served = _burn_patch_served,
+			soulblaze = _soulblaze_enabled,
+			flamer_burn = _flamer_burn_enabled,
+			skull_burn = _skull_burn_enabled,
+			debug_logging = _debug_logging,
+		}
+	end,
+})
+
+startup_detail.lap("other", "diagnostics")
+
+if REDIRECTS[1] then
+	mod:hook_safe(CLASS.PackageManager, "load", function(self, package_name, reference_name, callback, prioritize, use_resident_loading)
+		if _debug_logging then
+			diagnostics.package_loaded(package_name, reference_name, prioritize, use_resident_loading)
+		end
+	end)
+end
+
+mod:command("poly_check", mod:localize("poly_check_description"), function()
+	diagnostics.check_setup(false)
+end)
+
+local OPTIONS_LABELS = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/options_labels")(mod, {
+	has_sniper = has_source("sniper"),
+	redshift_owns_sniper = redshift_owns_sniper,
+	package_label_key = function()
+		return EFFECT_PACKAGES.label_key()
+	end,
+})
+
+EFFECT_PACKAGES.set_relabel(OPTIONS_LABELS.sync_package_label)
+startup_detail.lap("other", "labels")
+
+mod.toggle_effect_packages = function()
+	EFFECT_PACKAGES.toggle(OPTIONS_LABELS.sync_package_label)
+
+	if EFFECT_PACKAGES.busy() then
+		OPTIONS_LABELS.sync_package_label()
+	end
+end
+
+mod.on_all_mods_loaded = function()
+	local load_timer = STARTUP.start()
+
+	mod:info("Polychromatic %s loaded", tostring(mod.version))
+
+	local ui = Managers.ui
+	local in_level = ui ~= nil and ui:get_current_sub_state_name() == "GameplayStateRun"
+
+	STATE.gameplay_running = in_level
+
+	if _material_format.missing then
+		mod:info("material format probe %s unreadable: every patched file stays stock", _material_format.probe)
+		mod:echo("%s", mod:localize("game_format_unknown"))
+	elseif not _material_format.ok then
+		mod:info("game material format %s, payload built for %s: every patched file stays stock", tostring(_material_format.found), tostring(_material_format.expected))
+		mod:echo("%s", mod:localize("game_format_changed"))
+	end
+
+	load_timer.mark()
+
+	if asset_redirect then
+		asset_redirect.commit()
+	end
+
+	load_timer.lap("redirect commit")
+	_redirects_waiting = true
+
+	if not asset_redirect or asset_redirect.ready() then
+		settle_redirects()
 	end
 
 	load_timer.mark()
@@ -839,7 +942,12 @@ mod.on_all_mods_loaded = function()
 	load_timer.mark()
 
 	EFFECT_PACKAGES.startup(function()
-		EFFECT_PACKAGES.acquire()
+		_packages_started = true
+
+		if _redirects_settled then
+			EFFECT_PACKAGES.acquire()
+		end
+
 		OPTIONS_LABELS.sync_package_label()
 	end)
 
@@ -850,17 +958,44 @@ mod.on_all_mods_loaded = function()
 	load_timer.lap("installer start")
 	mod:info("%s", load_timer.line("all mods loaded", { "redirect commit", "engine attach", "installer start" }))
 
-	if _debug_logging then
+	if _debug_logging and _redirects_settled and not _redirects_capped then
 		diagnostics.check_setup(true, true)
+	elseif _debug_logging then
+		_setup_after_settle = true
 	end
 end
 
 mod.on_unload = function()
-	if ENGINE.weapon_glow then
-		ENGINE.weapon_glow.restore()
+	local held = false
+
+	for _, name in ipairs({ "weapon_glow", "unit_hues", "decal_swap" }) do
+		local engine = ENGINE[name]
+
+		if engine then
+			local ok, err = pcall(engine.restore)
+
+			if not ok then
+				held = true
+				mod:info("%s restore failed: %s", name, tostring(err))
+			end
+		end
 	end
 
-	EFFECT_PACKAGES.release()
+	for _, name in ipairs({ "weapon_glow", "unit_hues", "decal_swap", "live_tint" }) do
+		local engine = ENGINE[name]
+
+		if engine and not held then
+			local ok, in_use = pcall(engine.in_use)
+
+			held = not ok or in_use == true
+		end
+	end
+
+	if held then
+		mod:info("%s", "effect packages kept loaded: package resources are still in use by live units or effects")
+	else
+		EFFECT_PACKAGES.release()
+	end
 
 	if ENGINE.colour_channels then
 		ENGINE.colour_channels.detach()

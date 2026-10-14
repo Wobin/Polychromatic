@@ -280,17 +280,5 @@ return function(mod, module_data, modules)
 		return CA_PALETTES
 	end
 
-	function packages.status()
-		local loaded = {}
-
-		for asset_id in pairs(_ready) do
-			loaded[#loaded + 1] = asset_id
-		end
-
-		table.sort(loaded)
-
-		return loaded
-	end
-
 	return packages
 end

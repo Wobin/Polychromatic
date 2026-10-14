@@ -473,6 +473,10 @@ return function(mod, modules)
 			end
 		end
 
+		if boot.in_use then
+			_live = true
+		end
+
 		if not enabled then
 			installer.remove_then(state, done)
 
@@ -492,6 +496,16 @@ return function(mod, modules)
 		local recorded = mod:get(MODULES_SETTING)
 		local in_use = state.ok ~= false and state.current and boot.live
 
+		if boot.in_use and not in_use then
+			_live = true
+
+			local changes = type(recorded) == "string" and recorded ~= module_set() and installer.module_changes(recorded) or nil
+
+			done({ ok = true, deferred = true, modules_changed = changes })
+
+			return
+		end
+
 		if type(recorded) == "string" and recorded ~= module_set() and not in_use then
 			local changes = installer.module_changes(recorded)
 
@@ -510,6 +524,7 @@ return function(mod, modules)
 
 		if in_use then
 			_live = true
+			boot.in_use = true
 			done(record(state))
 
 			return

@@ -22,7 +22,7 @@ return {
 		burn_redirects = "burn_redirects",
 		spawn_vector_clouds = "spawn_vector_clouds",
 		encoded_effects = "encoded_effects",
-		burn_palettes = "burn_palettes",
+		skull_burn_palettes = "skull_burn_palettes",
 		ca_palettes = "palettes",
 		ca_assets = "ca_assets",
 		burn = "burn",

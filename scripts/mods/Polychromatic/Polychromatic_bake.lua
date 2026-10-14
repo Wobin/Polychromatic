@@ -17,6 +17,7 @@ return function(context)
 
 	local SOUL_MODULE = bake_module("soul")
 	local BURN_MODULE = bake_module("burn")
+	local SKULL_BURN_MODULE = bake_module("skull_burn")
 	local GLOW_MODULE = bake_module("glow")
 	local PLASMA_MODULE = bake_module("plasma")
 	local PAYLOAD_ROOT = "../mods/" .. (mod:get_internal_data("load_order_name") or mod:get_name()) .. "/modules/"
@@ -26,7 +27,6 @@ return function(context)
 	end
 
 	local SOUL_PAYLOAD_DIR = payload_dir(SOUL_MODULE)
-	local BURN_PAYLOAD_DIR = payload_dir(BURN_MODULE)
 	local GLOW_PAYLOAD_DIR = payload_dir(GLOW_MODULE)
 	local PLASMA_PAYLOAD_DIR = payload_dir(PLASMA_MODULE)
 	local SOUL_TEMPLATE_FILE = "soulblaze_flame.template"
@@ -35,18 +35,26 @@ return function(context)
 	local SOUL_HUE_STEPS = 1024
 	local SOUL_SATURATION_STEPS = 15
 	local BURN_LAYERS = {
-		{ template = "burn_0.burntemplate", size = 244, offset = 220 },
-		{ template = "burn_1.burntemplate", size = 312, offset = 272 },
-		{ template = "burn_2.burntemplate", size = 508, offset = 460 },
+		{ size = 244, offset = 220 },
+		{ size = 312, offset = 272 },
+		{ size = 508, offset = 460 },
 	}
 	local BURN_PALETTE_SLOTS = 12
+	local BURN_BAKES = {
+		{ module = BURN_MODULE, source = "flamer", prefix = "burn_", stream = 1, label = "burn colours" },
+		{ module = SKULL_BURN_MODULE, source = "skull", prefix = "skull_burn_", stream = 2, label = "skull burn colours" },
+	}
 
-	local function burn_material_file(layer, slot)
-		return string.format("burn_%d_%02d.burnmat", layer - 1, slot - 1)
+	local function burn_template_file(bake, layer)
+		return string.format("%s%d.burntemplate", bake.prefix, layer - 1)
 	end
 
-	local function burn_material_loose(layer, slot)
-		return string.format("data/zz/f0f5000000001%x%02x", layer - 1, slot - 1)
+	local function burn_material_file(bake, layer, slot)
+		return string.format("%s%d_%02d.burnmat", bake.prefix, layer - 1, slot - 1)
+	end
+
+	local function burn_material_loose(bake, layer, slot)
+		return string.format("data/zz/f0f500000000%d%x%02x", bake.stream, layer - 1, slot - 1)
 	end
 
 	local function soul_material_file(slot)
@@ -101,7 +109,7 @@ return function(context)
 		{ template = "f0f0000000000102.surftemplate", file = "f0f0000000000102.glowpal", size = 374989, offset = 244 },
 	}
 
-	local BURN_BAKE_SOURCES = { "flamer_mine_", "flamer_team_", "skull_mine_", "skull_team_" }
+	local has_source = context.has_source
 
 	local PLASMA_TRAIL_TEMPLATE = "c9a22ea5418d46c4.plasmatemplate"
 	local PLASMA_TRAIL_SIZE = 116416
@@ -132,11 +140,12 @@ return function(context)
 		return (index - 1) / #list
 	end
 
-	local function burn_bake_profile()
-		for _, prefix in ipairs(BURN_BAKE_SOURCES) do
-			local mode = mod:get(prefix .. "mode") or "stock"
+	local function burn_bake_profile(source)
+		for _, category in ipairs({ "mine", "team" }) do
+			local prefix = source .. "_" .. category .. "_"
+			local mode = has_source(source) and mod:get(prefix .. "mode") or "stock"
 
-			if mod:get(prefix .. "show") ~= false and mode ~= "stock" then
+			if mod:get(prefix .. "show") ~= false and mode ~= "stock" and mode ~= "hidden" then
 				local saturation = 1
 				local colour = mod:get(prefix .. "colour")
 
@@ -212,25 +221,26 @@ return function(context)
 		groups[#groups + 1] = { template = SOUL_PAYLOAD_DIR .. SOUL_TEMPLATE_FILE, size = SOUL_TEMPLATE_SIZE, missing = "soulblaze colours: template missing, shipped defaults used", jobs = jobs }
 	end
 
-	local function plan_burn(ffi, groups)
-		local saturation, brightness = burn_bake_profile()
+	local function plan_burn(ffi, groups, bake)
+		local saturation, brightness = burn_bake_profile(bake.source)
 		local saturation_step = math_floor(saturation * SOUL_SATURATION_STEPS + 0.5)
 		local brightness_step = math_max(MIN_BRIGHTNESS_STEP, math_min(MAX_BRIGHTNESS_STEP, brightness))
 		local value = ffi.new("float[1]")
+		local dir = payload_dir(bake.module)
 
 		for layer = 1, #BURN_LAYERS do
 			local spec = BURN_LAYERS[layer]
 			local jobs = {}
-			local message = "burn colours: template " .. spec.template .. " missing or wrong size"
+			local message = bake.label .. ": template " .. burn_template_file(bake, layer) .. " missing or wrong size"
 
 			for slot = 1, BURN_PALETTE_SLOTS do
 				local hue_step = math_floor((slot - 1) / BURN_PALETTE_SLOTS * SOUL_HUE_STEPS)
 
 				value[0] = 1000 + saturation_step + (hue_step * 16 + brightness_step) / 16384
-				jobs[#jobs + 1] = { path = BURN_PAYLOAD_DIR .. burn_material_file(layer, slot), offset = spec.offset, patch = ffi.string(value, 4), fail = "burn colours: cannot write %s" }
+				jobs[#jobs + 1] = { path = dir .. burn_material_file(bake, layer, slot), offset = spec.offset, patch = ffi.string(value, 4), fail = bake.label .. ": cannot write %s" }
 			end
 
-			groups[#groups + 1] = { template = BURN_PAYLOAD_DIR .. spec.template, size = spec.size, missing = message, wrong = message, jobs = jobs }
+			groups[#groups + 1] = { template = dir .. burn_template_file(bake, layer), size = spec.size, missing = message, wrong = message, jobs = jobs }
 		end
 	end
 
@@ -532,8 +542,10 @@ return function(context)
 				mod:info("soulblaze colours: no file access, shipped defaults used")
 			end
 
-			if BURN_MODULE then
-				mod:info("burn colours: no file access, shipped defaults used")
+			for _, burn_bake in ipairs(BURN_BAKES) do
+				if burn_bake.module then
+					mod:info("%s: no file access, shipped defaults used", burn_bake.label)
+				end
 			end
 
 			return counts
@@ -545,8 +557,10 @@ return function(context)
 			plan_soul(ffi, groups)
 		end
 
-		if BURN_MODULE then
-			plan_burn(ffi, groups)
+		for _, burn_bake in ipairs(BURN_BAKES) do
+			if burn_bake.module then
+				plan_burn(ffi, groups, burn_bake)
+			end
 		end
 
 		if GLOW_MODULE then
@@ -588,26 +602,55 @@ return function(context)
 		return counts
 	end
 
-	if SOUL_MODULE then
-		for i = 1, #SOUL_SLOTS do
-			local slot = SOUL_SLOTS[i]
+	local baked_groups = {}
 
-			REDIRECTS[#REDIRECTS + 1] = { stock = string.format("data/zz/f0f50000000030%02x", i - 1), file = soul_material_file(slot), virtual = true, module = SOUL_MODULE }
-			slot.material_redirect = #REDIRECTS
-		end
+	local function soul_stock(i)
+		return string.format("data/zz/f0f50000000030%02x", i - 1)
 	end
 
-	if BURN_MODULE then
-		for layer = 1, #BURN_LAYERS do
-			for slot = 1, BURN_PALETTE_SLOTS do
-				REDIRECTS[#REDIRECTS + 1] = { stock = burn_material_loose(layer, slot), file = burn_material_file(layer, slot), virtual = true, module = BURN_MODULE }
+	if SOUL_MODULE then
+		local list = {}
+
+		for i = 1, #SOUL_SLOTS do
+			list[i] = { stock = soul_stock(i), file = soul_material_file(SOUL_SLOTS[i]), virtual = true }
+		end
+
+		baked_groups[#baked_groups + 1] = { module = SOUL_MODULE, list = list }
+	end
+
+	for _, burn_bake in ipairs(BURN_BAKES) do
+		if burn_bake.module then
+			local list = {}
+
+			for layer = 1, #BURN_LAYERS do
+				for slot = 1, BURN_PALETTE_SLOTS do
+					list[#list + 1] = { stock = burn_material_loose(burn_bake, layer, slot), file = burn_material_file(burn_bake, layer, slot), virtual = true }
+				end
 			end
+
+			baked_groups[#baked_groups + 1] = { module = burn_bake.module, list = list }
 		end
 	end
 
 	if GLOW_MODULE then
-		REDIRECTS[#REDIRECTS + 1] = { stock = "data/zz/f0f5000000003100", file = GLOW_MATERIAL_FILE, virtual = true, module = GLOW_MODULE }
-		REDIRECTS[#REDIRECTS + 1] = { stock = "data/zz/f0f5000000003101", file = IMPACT_GLOW_FILE, virtual = true, module = GLOW_MODULE }
+		baked_groups[#baked_groups + 1] = { module = GLOW_MODULE, list = {
+			{ stock = "data/zz/f0f5000000003100", file = GLOW_MATERIAL_FILE, virtual = true },
+			{ stock = "data/zz/f0f5000000003101", file = IMPACT_GLOW_FILE, virtual = true },
+		} }
+	end
+
+	context.merge(baked_groups)
+
+	if SOUL_MODULE then
+		local index_of = {}
+
+		for i = 1, #REDIRECTS do
+			index_of[REDIRECTS[i].stock] = index_of[REDIRECTS[i].stock] or i
+		end
+
+		for i = 1, #SOUL_SLOTS do
+			SOUL_SLOTS[i].material_redirect = index_of[soul_stock(i)]
+		end
 	end
 
 	lap("load")

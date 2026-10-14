@@ -1,11 +1,15 @@
-local LIB_VERSION = 3
+local LIB_VERSION = 6
 local INSTANCE_KEY = "__asset_redirect_instance"
 local CDEF_TYPE = "AssetRedirect_CDEF"
 local INSTALLED_CDEF_TYPE = "AssetRedirect_INSTALLED_CDEF"
+local VERIFY_CDEF_TYPE = "AssetRedirect_VERIFY_CDEF"
 local DLL_NAME = "asset-redirect.dll"
 local TEXT_CAP = 2048
 local STATS_CAP = 262144
 local TRACE_CAP = 262144
+local VERIFY_CAP = 65536
+local MAIN_WAIT_MS = 25
+local MAIN_WAIT_BUDGET_MS = 100
 
 local _G = _G
 local rawget = rawget
@@ -19,6 +23,8 @@ local math_floor = math.floor
 local string_format = string.format
 local string_lower = string.lower
 local table_concat = table.concat
+local table_sort = table.sort
+local tonumber = tonumber
 
 local existing = rawget(_G, INSTANCE_KEY)
 local takeover = existing == nil or (not existing.committed and existing.core_version < LIB_VERSION)
@@ -60,11 +66,38 @@ local facade = {
 	winner = function(handle)
 		return instance.core.winner(handle)
 	end,
+	pinned = function(handle)
+		local pinned = instance.core.pinned
+
+		if pinned then
+			return pinned(handle)
+		end
+
+		return false
+	end,
 	clear = function(mod)
 		return instance.core.clear(mod)
 	end,
 	version = function()
 		return instance.core.version()
+	end,
+	ready = function()
+		local ready = instance.core.ready
+
+		if ready then
+			return ready()
+		end
+
+		return true
+	end,
+	verified = function()
+		local verified = instance.core.verified
+
+		if verified then
+			return verified()
+		end
+
+		return nil
 	end,
 }
 
@@ -77,6 +110,8 @@ rawset(_G, INSTANCE_KEY, instance)
 local Mods = rawget(_G, "Mods")
 local ffi = Mods and Mods.lua and Mods.lua.ffi
 local cjson = rawget(_G, "cjson")
+local os_lib = rawget(_G, "os")
+local clock = type(os_lib) == "table" and type(os_lib.clock) == "function" and os_lib.clock or nil
 
 local CDEF = [[
 	typedef struct { int unused; } AssetRedirect_CDEF;
@@ -94,6 +129,13 @@ local CDEF = [[
 
 local MODULE_CDEF = "void* GetModuleHandleA(const char* name);"
 local INSTALLED_CDEF = "typedef struct { int unused; } AssetRedirect_INSTALLED_CDEF; int AssetRedirect_Installed(void);"
+local VERIFY_CDEF = [[
+	typedef struct { int unused; } AssetRedirect_VERIFY_CDEF;
+	int AssetRedirect_VerifyStart(const char* list, char* out, int cap);
+	int AssetRedirect_VerifyPoll(char* out, int cap);
+	int AssetRedirect_VerifyEntry(const char* stock, char* out, int cap);
+	int AssetRedirect_VerifyWait(const char* stock, int timeout_ms);
+]]
 
 local STATE_ORDER = { "active", "shared", "compatible", "displaced", "refused", "restart_required", "unavailable", "pending" }
 
@@ -166,7 +208,12 @@ local function seed_from_stats()
 	end
 
 	for _, entry in ipairs(entries) do
-		if type(entry.key) == "string" and type(entry.replacement) == "string" and entry.virtual ~= true then
+		if type(entry.key) == "string" and entry.status == "pinned" then
+			local file = file_record(entry.key)
+
+			file.pinned = true
+			file.restart = true
+		elseif type(entry.key) == "string" and type(entry.replacement) == "string" and entry.virtual ~= true and (entry.status == nil or entry.status == "active") then
 			local hash = hash_file(entry.replacement)
 
 			if hash then
@@ -237,6 +284,14 @@ local function load_native(candidate)
 
 	instance.native = lib
 	instance.native_state = "ready"
+
+	if not pcall(ffi.typeof, VERIFY_CDEF_TYPE) then
+		pcall(ffi.cdef, VERIFY_CDEF)
+	end
+
+	local has_verify, verify_start = pcall(function() return lib.AssetRedirect_VerifyStart end)
+
+	instance.can_verify = has_verify and verify_start ~= nil
 
 	local version = text_buffer(64)
 
@@ -358,11 +413,21 @@ local function evaluate(reg)
 	return nil
 end
 
+local PINNED_REASON = "it was opened as stock before it was verified, so it stays stock until the game restarts"
+
 local function validate(reg)
 	reg.valid = false
 	reg.reason = nil
 	reg.payload_path = nil
 	reg.payload_hash = nil
+
+	local file = instance.files[reg.stock]
+
+	if file and file.pinned then
+		refuse(reg, PINNED_REASON)
+
+		return
+	end
 
 	local reason = evaluate(reg)
 
@@ -388,6 +453,10 @@ end
 local function resolve(stock)
 	local file = instance.files[stock]
 	local native = instance.native
+
+	if file.pinned then
+		return
+	end
 
 	for _ = 1, #file.regs + 1 do
 		local winner = pick_winner(file)
@@ -434,6 +503,360 @@ local function resolve(stock)
 	end
 end
 
+local JSON_ESCAPES = { ['"'] = '\\"', ["\\"] = "\\\\" }
+
+local function json_escape(c)
+	return JSON_ESCAPES[c] or string_format("\\u%04x", c:byte())
+end
+
+local function json_string(text)
+	return '"' .. (text:gsub('[%c"\\]', json_escape)) .. '"'
+end
+
+local function decode(text)
+	local ok, value = pcall(cjson.decode, text)
+
+	if ok and type(value) == "table" then
+		return value
+	end
+
+	return nil
+end
+
+local function verify_buffer(need)
+	if not instance.verify_buf or instance.verify_cap < need then
+		instance.verify_cap = need
+		instance.verify_buf = text_buffer(need)
+	end
+
+	return instance.verify_buf, instance.verify_cap
+end
+
+local function by_preference(a, b)
+	if a.priority ~= b.priority then
+		return a.priority > b.priority
+	end
+
+	return a.arrival < b.arrival
+end
+
+local function start_verify()
+	local parts = {}
+	local regs_by_stock = {}
+
+	for _, stock in ipairs(instance.order) do
+		local file = instance.files[stock]
+		local sendable = {}
+
+		for _, reg in ipairs(file.regs) do
+			reg.valid = false
+			reg.reason = nil
+			reg.payload_path = nil
+			reg.payload_hash = nil
+
+			local reason = field_error(reg.spec)
+
+			if reason then
+				refuse(reg, reason)
+			else
+				sendable[#sendable + 1] = reg
+			end
+		end
+
+		if #sendable > 0 then
+			table_sort(sendable, by_preference)
+			regs_by_stock[stock] = sendable
+
+			local candidates = {}
+
+			for i, reg in ipairs(sendable) do
+				local is_virtual = reg.spec.virtual == true
+
+				reg.verify_path = "mods/" .. mod_folder(reg.mod) .. "/" .. reg.spec.file
+				candidates[i] = string_format('{"file":%s,"sha256":%s,"virtual":%s}', json_string(reg.verify_path), is_virtual and "null" or json_string(reg.expect), is_virtual and "true" or "false")
+			end
+
+			parts[#parts + 1] = string_format('{"stock":%s,"candidates":[%s]}', json_string(stock), table_concat(candidates, ","))
+		end
+	end
+
+	if #parts == 0 then
+		return false
+	end
+
+	local out = text_buffer(TEXT_CAP)
+
+	if instance.native.AssetRedirect_VerifyStart('{"entries":[' .. table_concat(parts, ",") .. ']}', out, TEXT_CAP) ~= 1 then
+		return false
+	end
+
+	for _, stock in ipairs(instance.order) do
+		local file = instance.files[stock]
+
+		if regs_by_stock[stock] then
+			file.verified = false
+		else
+			file.winner = nil
+		end
+	end
+
+	instance.verify_regs = regs_by_stock
+	instance.verify_wait_left = MAIN_WAIT_BUDGET_MS
+	instance.verifying = true
+
+	return true
+end
+
+local function apply_result(stock, item)
+	local file = instance.files[stock]
+
+	if not file or file.verified ~= false then
+		return
+	end
+
+	file.verified = true
+
+	local regs = instance.verify_regs[stock] or {}
+
+	if item.timed_out == true then
+		for _, reg in ipairs(regs) do
+			refuse(reg, "verification did not finish in time, so the stock file stays this session")
+		end
+
+		file.winner = nil
+		file.pushed = nil
+		file.restart = item.pinned == true
+		file.pinned = true
+
+		return
+	end
+
+	local candidates = type(item.candidates) == "table" and item.candidates or {}
+	local stock_sha = type(item.stock_sha) == "string" and string_lower(item.stock_sha) or nil
+
+	if stock_sha then
+		instance.stock_hashes[stock] = stock_sha
+	end
+
+	for i, reg in ipairs(regs) do
+		local candidate = type(candidates[i]) == "table" and candidates[i] or {}
+		local reason
+
+		if reg.spec.virtual ~= true then
+			if not stock_sha then
+				reason = "cannot read the stock file: " .. tostring(item.stock_error)
+			elseif stock_sha ~= reg.expect then
+				reason = string_format("the stock file has changed (sha256 %s, expected %s)", stock_sha, tostring(reg.expect))
+			end
+		end
+
+		if not reason then
+			if type(candidate.payload_sha) == "string" then
+				reg.payload_path = reg.verify_path
+				reg.payload_hash = string_lower(candidate.payload_sha)
+			else
+				reason = "cannot read the payload: " .. tostring(candidate.payload_error)
+			end
+		end
+
+		if reason then
+			refuse(reg, reason)
+		else
+			reg.valid = true
+		end
+	end
+
+	local winner
+
+	for i, reg in ipairs(regs) do
+		if reg.valid then
+			local add_error = type(candidates[i]) == "table" and candidates[i].add_error
+
+			if type(add_error) == "string" then
+				refuse(reg, add_error)
+			else
+				winner = reg
+
+				break
+			end
+		end
+	end
+
+	local active = tonumber(item.active) or -1
+	local served = active >= 0 and regs[active + 1] or nil
+
+	if served ~= winner then
+		winner = served
+	end
+
+	file.winner = winner
+
+	if winner and item.pinned ~= true then
+		file.pushed = { path = winner.payload_path, hash = winner.payload_hash }
+	else
+		file.pushed = nil
+	end
+
+	if item.pinned == true then
+		file.restart = true
+		file.pinned = true
+
+		if winner then
+			report(winner, "the engine opened it before verification finished, so the stock file stays this session")
+		end
+	end
+end
+
+local function bounded_wait(stock)
+	local left = instance.verify_wait_left or 0
+
+	if left <= 0 then
+		return
+	end
+
+	local wait = left < MAIN_WAIT_MS and left or MAIN_WAIT_MS
+	local started = clock and clock()
+	local settled = instance.native.AssetRedirect_VerifyWait(stock, wait)
+	local spent = wait
+
+	if started and settled == 1 then
+		spent = math_floor((clock() - started) * 1000 + 1)
+		spent = spent < wait and spent or wait
+	end
+
+	if settled == 0 then
+		instance.verify_wait_left = 0
+	else
+		instance.verify_wait_left = left - spent
+	end
+end
+
+local function settle_stock(stock)
+	local file = instance.files[stock]
+
+	if not instance.verifying or not file or file.verified ~= false then
+		return
+	end
+
+	local native = instance.native
+
+	bounded_wait(stock)
+
+	local buffer, cap = verify_buffer(VERIFY_CAP)
+	local written = native.AssetRedirect_VerifyEntry(stock, buffer, cap)
+
+	if written > 1 then
+		buffer, cap = verify_buffer(written)
+		written = native.AssetRedirect_VerifyEntry(stock, buffer, cap)
+	end
+
+	local item = written == 1 and decode(ffi.string(buffer))
+
+	if item then
+		apply_result(stock, item)
+	end
+end
+
+local function run_deferred()
+	local deferred = instance.deferred
+
+	if not deferred then
+		return
+	end
+
+	instance.deferred = nil
+
+	local stocks = deferred.stocks
+
+	for _, reg in ipairs(deferred.regs) do
+		reg.deferred = nil
+		stocks[#stocks + 1] = reg.stock
+	end
+
+	if instance.native_state ~= "ready" then
+		return
+	end
+
+	for _, reg in ipairs(deferred.regs) do
+		validate(reg)
+	end
+
+	local seen = {}
+
+	for _, stock in ipairs(stocks) do
+		if not seen[stock] and instance.files[stock] then
+			seen[stock] = true
+			resolve(stock)
+		end
+	end
+end
+
+local function defer(reg, stock)
+	local deferred = instance.deferred
+
+	if not deferred then
+		deferred = { regs = {}, stocks = {} }
+		instance.deferred = deferred
+	end
+
+	if reg then
+		reg.deferred = true
+		deferred.regs[#deferred.regs + 1] = reg
+	else
+		deferred.stocks[#deferred.stocks + 1] = stock
+	end
+end
+
+local function finish_verify(block)
+	if not instance.verifying then
+		return true
+	end
+
+	local native = instance.native
+
+	if block then
+		bounded_wait(nil)
+	end
+
+	local buffer, cap = verify_buffer(VERIFY_CAP)
+	local polled = native.AssetRedirect_VerifyPoll(buffer, cap)
+
+	if polled > 1 then
+		buffer, cap = verify_buffer(polled)
+		polled = native.AssetRedirect_VerifyPoll(buffer, cap)
+	end
+
+	if polled == 0 then
+		return false
+	end
+
+	local result = polled == 1 and decode(ffi.string(buffer)) or {}
+	local items = type(result.items) == "table" and result.items or {}
+
+	for _, item in ipairs(items) do
+		if type(item) == "table" and type(item.stock) == "string" then
+			apply_result(item.stock, item)
+		end
+	end
+
+	instance.verifying = false
+	instance.verify_ms = tonumber(result.elapsed_ms)
+	instance.verify_hashed = tonumber(result.hashed_bytes)
+	instance.verify_pinned = tonumber(result.pinned)
+
+	run_deferred()
+
+	return true
+end
+
+function core.ready()
+	return finish_verify(false)
+end
+
+function core.verified()
+	return instance.verify_ms, instance.verify_hashed, instance.verify_pinned
+end
+
 function core.commit()
 	if instance.committed or instance.committing then
 		return
@@ -453,7 +876,9 @@ function core.commit()
 		load_native(best)
 	end
 
-	if instance.native_state == "ready" then
+	local background = instance.native_state == "ready" and instance.can_verify and not instance.late and cjson ~= nil and start_verify()
+
+	if instance.native_state == "ready" and not background then
 		for _, stock in ipairs(instance.order) do
 			for _, reg in ipairs(instance.files[stock].regs) do
 				validate(reg)
@@ -476,11 +901,31 @@ function core.state(reg)
 		return "unavailable"
 	end
 
-	if not reg.valid then
-		return "refused"
+	if reg.deferred then
+		finish_verify(true)
+
+		if reg.deferred then
+			return "pending"
+		end
+	end
+
+	if instance.verifying then
+		settle_stock(reg.stock)
+
+		if instance.files[reg.stock].verified == false then
+			return "pending"
+		end
 	end
 
 	local file = instance.files[reg.stock]
+
+	if file.pinned and file.restart then
+		return "restart_required"
+	end
+
+	if not reg.valid then
+		return "refused"
+	end
 
 	if file.restart then
 		return "restart_required"
@@ -508,6 +953,10 @@ function core.state(reg)
 end
 
 function core.winner(reg)
+	if instance.verifying then
+		settle_stock(reg.stock)
+	end
+
 	local file = instance.files[reg.stock]
 	local winner = file and file.winner
 
@@ -518,8 +967,16 @@ function core.winner(reg)
 	return winner.owner, winner.contract
 end
 
+function core.pinned(reg)
+	local stock = type(reg) == "table" and reg.stock
+	local file = stock and instance.files[stock]
+
+	return type(file) == "table" and file.pinned == true
+end
+
 local function print_status(mod)
 	core.commit()
+	finish_verify(true)
 
 	local native = instance.native
 	local counts = {}
@@ -668,6 +1125,14 @@ function core.register(mod, spec, copy_version)
 		load_native(candidate)
 	end
 
+	if not finish_verify(true) then
+		if not reg.deferred then
+			defer(reg)
+		end
+
+		return reg
+	end
+
 	if instance.native_state == "ready" then
 		validate(reg)
 		resolve(stock)
@@ -678,6 +1143,7 @@ end
 
 function core.clear(mod)
 	local owner = mod:get_name()
+	local settled = finish_verify(true)
 
 	for stock, file in pairs(instance.files) do
 		local kept = {}
@@ -691,7 +1157,9 @@ function core.clear(mod)
 		if #kept ~= #file.regs then
 			file.regs = kept
 
-			if instance.committed and instance.native_state == "ready" then
+			if not settled then
+				defer(nil, stock)
+			elseif instance.committed and instance.native_state == "ready" then
 				resolve(stock)
 			end
 		end

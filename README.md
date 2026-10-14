@@ -61,7 +61,7 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 
 | Source | Covers |
 |---|---|
-| Assail | The knife trail, the critical trail, the hit flash on the target and the aim marker. The trails take the nearest of 12 hues; hits on armour and walls, blood and the knife itself stay stock. No Hidden. |
+| Assail | The knife trail, the critical trail, the hit flash on the target, the aim marker and the shards hovering at the hand while Assail is held. The trails take the nearest of 12 hues; hits on armour and walls, blood and the knife itself stay stock. No Hidden. |
 | Brain Burst | The Psyker hand charge-up, the build-up, the target marker and the burst on the target. No Hidden. |
 | Force greatsword | Charge, activation, fingertip wisps, blocks, parries, the push, and the arc thrown by the charged special. |
 | Smite | The Psyker lightning between hands and targets, the strike on each target, the hand and fingertip arcs, the charge-up and the target marker. No Hidden. |

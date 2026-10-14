@@ -17,11 +17,10 @@ return function(mod, core, data_list)
 	local RADIUS = 8
 	local MAX_BLASTS = 8
 
-	local FixedFrame = require("scripts/utilities/fixed_frame")
-	local Interrupt = require("scripts/utilities/attack/interrupt")
-
 	local _blasts = {}
 	local _context = nil
+	local _server_contexts = {}
+	local _husk_contexts = {}
 	local pools = {}
 
 	local function call_in_context(context, func, ...)
@@ -48,14 +47,39 @@ return function(mod, core, data_list)
 		end
 
 		local source_unit = self._source_unit
+		local owner = source_unit and core.player_category(source_unit) or false
+		local by_owner = _server_contexts[kind]
 
-		return { kind = kind, owner = source_unit and core.player_category(source_unit) or nil }
+		if not by_owner then
+			by_owner = {}
+			_server_contexts[kind] = by_owner
+		end
+
+		local context = by_owner[owner]
+
+		if not context then
+			context = { kind = kind, owner = owner or nil }
+			by_owner[owner] = context
+		end
+
+		return context
 	end
 
 	local function husk_context(self)
 		local kind = self._area_template_name
 
-		return PLAYER_TEMPLATES[kind] and { kind = kind } or false
+		if not PLAYER_TEMPLATES[kind] then
+			return false
+		end
+
+		local context = _husk_contexts[kind]
+
+		if not context then
+			context = { kind = kind }
+			_husk_contexts[kind] = context
+		end
+
+		return context
 	end
 
 	for _, method in ipairs({ "_create_liquid", "_set_filled" }) do
@@ -69,30 +93,6 @@ return function(mod, core, data_list)
 			return call_in_context(husk_context(self), func, self, ...)
 		end)
 	end
-
-	mod:hook(CLASS.PackageSynchronizerHost, "_cleanup_owned_units", function(func, self, player)
-		local player_unit = player and player.player_unit
-
-		if player_unit and ScriptUnit.has_extension(player_unit, "companion_spawner_system") then
-			return func(self, player)
-		end
-
-		local unit_spawner_manager = Managers.state.unit_spawner
-
-		if not unit_spawner_manager or not player then
-			return
-		end
-
-		if player_unit then
-			Interrupt.ability_and_action(FixedFrame.get_latest_fixed_time(), player_unit, "PackageSynchronizer", nil, true)
-		end
-
-		for unit in pairs(player.owned_units or {}) do
-			if unit ~= player_unit then
-				unit_spawner_manager:mark_for_deletion(unit)
-			end
-		end
-	end)
 
 	local function blast_owner(kind, position)
 		if not position then

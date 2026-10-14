@@ -1,6 +1,7 @@
 local math_floor = math.floor
 
 return function(mod, core, data_list)
+	local murmur_preimage = core.murmur_preimage
 	local profile_for = core.profile_for
 	local gameplay_time = core.gameplay_time
 	local resource_ready = core.resource_ready
@@ -28,11 +29,66 @@ return function(mod, core, data_list)
 	local _decal_hue = setmetatable({}, { __mode = "k" })
 	local _decal_names = {}
 	local _decal_ready = {}
+	local _attached = setmetatable({}, { __mode = "k" })
+	local _validated = setmetatable({}, { __mode = "k" })
+	local _stock_names = {}
+	local _disabled = false
+
+	local function stock_name(hex)
+		local name = _stock_names[hex]
+
+		if name == nil then
+			name = murmur_preimage and murmur_preimage(hex) or false
+
+			if name and Application.can_get_resource("material", name) ~= true then
+				name = false
+			end
+
+			_stock_names[hex] = name
+		end
+
+		return name or nil
+	end
+
+	local function restore_unit(unit, slots)
+		local restored = true
+
+		for i = 1, #slots do
+			local name = stock_name(slots[i].material)
+
+			if not name or not pcall(Unit.set_material, unit, slots[i].slot, name) then
+				restored = false
+			end
+		end
+
+		return restored
+	end
+
+	local function validate_and_apply(unit, id, slots, names, index)
+		for i = 1, #slots do
+			local ok, err = pcall(Unit.set_material, unit, slots[i].slot, names[i][index])
+
+			if not ok then
+				_disabled = true
+				mod:info("staff decal recolour disabled: unit %s rejected material slot %s: %s", tostring(id), tostring(i), tostring(err))
+
+				if restore_unit(unit, slots) then
+					_attached[unit] = nil
+				end
+
+				return false
+			end
+		end
+
+		_validated[unit] = true
+
+		return true
+	end
 
 	local function recolour_targeting_decal(script, owner)
 		local unit = script._decal_unit
 
-		if not DECAL_ROOT or not unit or not Unit.alive(unit) then
+		if _disabled or not DECAL_ROOT or not unit or not Unit.alive(unit) then
 			return
 		end
 
@@ -88,14 +144,52 @@ return function(mod, core, data_list)
 			end
 		end
 
-		for i = 1, #slots do
-			Unit.set_material(unit, slots[i].slot, names[i][index])
+		_attached[unit] = slots
+
+		if not _validated[unit] then
+			if not validate_and_apply(unit, id, slots, names, index) then
+				return
+			end
+		else
+			for i = 1, #slots do
+				Unit.set_material(unit, slots[i].slot, names[i][index])
+			end
 		end
 
 		_decal_hue[unit] = index
 	end
 
+	local function in_use()
+		for unit in pairs(_attached) do
+			if Unit.alive(unit) then
+				return true
+			end
+
+			_attached[unit] = nil
+		end
+
+		return false
+	end
+
+	local function restore()
+		for unit, slots in pairs(_attached) do
+			if not Unit.alive(unit) or restore_unit(unit, slots) then
+				_attached[unit] = nil
+			end
+		end
+
+		for unit in pairs(_decal_hue) do
+			_decal_hue[unit] = nil
+		end
+
+		if in_use() then
+			mod:info("staff decal: a stock decal material could not be resolved, package materials stay attached")
+		end
+	end
+
 	return {
 		recolour = recolour_targeting_decal,
+		restore = restore,
+		in_use = in_use,
 	}
 end

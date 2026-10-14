@@ -9,5 +9,5 @@ return {
 		})
 	end,
 	packages = {},
-	load_after = { "Redshift" },
+	load_after = { "Redshift", "Painted Prophet" },
 }

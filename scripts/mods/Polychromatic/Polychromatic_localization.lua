@@ -73,6 +73,7 @@ local localization = {
 	mod_description = { en = "Recolours or hides weapon and Psyker effects (flame, las, plasma, lightning and warp powers), separately for your own and your team's, plus the enemy sniper laser and exploding barrels." },
 	restart_required = { en = "Polychromatic: flame files changed while the game was running. Restart the game for them to take effect." },
 	game_format_changed = { en = "Polychromatic: this game update changed the effect file format. Fire and las colours stay stock until Polychromatic is updated." },
+	game_format_unknown = { en = "Polychromatic: could not read the game's effect file format. Fire and las colours stay stock this session." },
 	sources_heading = { en = "Sources" },
 	general_heading = { en = general_title() },
 	effect_packages = { en = "Effect packages" },
@@ -101,13 +102,13 @@ local localization = {
 	poly_check_description = { en = "Polychromatic: report the setup state to the console log for troubleshooting." },
 	flamer_burn = { en = "Burning enemies follow these settings" },
 	skull_burn = { en = "Burning enemies follow these settings" },
-	skull_burn_description = { en = "Enemies the servo-skull sets alight burn in the skull's colour, taken at the moment they catch fire, and glow in it as they char. Saturation and brightness come from the flamer setting when that source is on, otherwise from this one (restart after changing them). The main flame and the two brightest stack layers recolour; the smoke and embers stay stock." },
+	skull_burn_description = { en = "Enemies the servo-skull sets alight burn in the skull's colour, taken at the moment they catch fire, and glow in it as they char. The skull's own colour, saturation and brightness always apply, whatever the flamer is set to (restart after changing saturation or brightness). The main flame and the two brightest stack layers recolour; the smoke and embers stay stock." },
 	flamer_burn_description = { en = "Enemies set alight by a flamer burn in that flamer's colour, taken at the moment they catch fire, and glow in it as they char. The main flame and the two brightest stack layers recolour; the smoke and embers stay stock." },
 	shield_mine_damage_gate = { en = "Change colour when my shield is damaged" },
 	shield_mine_damage_gate_description = { en = "When one of your shields falls below the set percentage of its health it switches to your damaged colour, even when Colour is Base." },
 	shield_team_damage_gate = { en = "Change colour when a team shield is damaged" },
 	shield_team_damage_gate_description = { en = "When a teammate's shield falls below the set percentage of its health it switches to the team damaged colour, even when Colour is Base." },
-	shield_damage_threshold = { en = "Damaged below (%%)" },
+	shield_mine_damage_threshold = { en = "Damaged below (%%)" },
 	shield_team_damage_threshold = { en = "Damaged below (%%)" },
 	shield_mine_damaged_colour = { en = "Damaged colour" },
 	shield_team_damaged_colour = { en = "Damaged colour" },
@@ -121,6 +122,28 @@ local localization = {
 	mode_rainbow = { en = "Rainbow" },
 	mode_hidden = { en = "Hidden" },
 }
+
+local function module_widget_labels(widgets)
+	for _, widget in ipairs(type(widgets) == "table" and widgets or {}) do
+		local id = type(widget) == "table" and widget.setting_id
+
+		if type(id) == "string" then
+			if localization[id] == nil and type(widget.label) == "string" then
+				localization[id] = { en = escape(widget.label) }
+			end
+
+			if localization[id .. "_description"] == nil and type(widget.description) == "string" then
+				localization[id .. "_description"] = { en = escape(widget.description) }
+			end
+
+			module_widget_labels(widget.sub_widgets)
+		end
+	end
+end
+
+for i = 1, #SOURCES do
+	module_widget_labels(SOURCES[i].widgets)
+end
 
 for i = 1, #SOURCES do
 	local set = SOURCES[i]

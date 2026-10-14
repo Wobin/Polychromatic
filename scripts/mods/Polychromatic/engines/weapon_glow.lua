@@ -1,4 +1,5 @@
 return function(mod, core, data_list)
+	local murmur_preimage = core.murmur_preimage
 	local WEAPONS = {}
 	local SLOTS = {}
 	local DEFAULT_SLOTS = { "slot_primary", "slot_secondary" }
@@ -57,9 +58,28 @@ return function(mod, core, data_list)
 	local _fin_owner = setmetatable({}, { __mode = "k" })
 	local _unit_count = setmetatable({}, { __mode = "k" })
 	local _written = setmetatable({}, { __mode = "k" })
+	local _fin_attached = setmetatable({}, { __mode = "k" })
 	local _fin_ready = {}
+	local _stock_names = {}
+	local _units_scratch = {}
 	local _rainbow_t = 0
 	local glow = {}
+
+	local function stock_name(hex)
+		local name = _stock_names[hex]
+
+		if name == nil then
+			name = murmur_preimage and murmur_preimage(hex) or false
+
+			if name and Application_can_get_resource("material", name) ~= true then
+				name = false
+			end
+
+			_stock_names[hex] = name
+		end
+
+		return name or nil
+	end
 
 	local function usable(extension)
 		return extension ~= nil and not rawget(extension, "__deleted")
@@ -134,9 +154,25 @@ return function(mod, core, data_list)
 		end
 	end
 
+	local function append_attachments(units, by_unit)
+		if type(by_unit) ~= "table" then
+			return
+		end
+
+		for _, list in pairs(by_unit) do
+			for i = 1, #list do
+				units[#units + 1] = list[i]
+			end
+		end
+	end
+
 	local function slot_units(slot, weapon)
-		local units = {}
+		local units = _units_scratch
 		local names = weapon.attachment_names
+
+		for i = #units, 1, -1 do
+			units[i] = nil
+		end
 
 		if names then
 			named_units(units, slot.attachments_by_unit_1p, slot.attachment_map_by_unit_1p, names)
@@ -153,15 +189,8 @@ return function(mod, core, data_list)
 			units[#units + 1] = slot.unit_3p
 		end
 
-		for _, by_unit in ipairs({ slot.attachments_by_unit_1p, slot.attachments_by_unit_3p }) do
-			if by_unit then
-				for _, list in pairs(by_unit) do
-					for i = 1, #list do
-						units[#units + 1] = list[i]
-					end
-				end
-			end
-		end
+		append_attachments(units, slot.attachments_by_unit_1p)
+		append_attachments(units, slot.attachments_by_unit_3p)
 
 		return units
 	end
@@ -190,6 +219,7 @@ return function(mod, core, data_list)
 						end
 
 						if ready == true then
+							_fin_attached[unit] = entries
 							Unit_set_material(unit, entries[k].slot, name)
 						else
 							done = false
@@ -362,6 +392,42 @@ return function(mod, core, data_list)
 		for unit in pairs(_written) do
 			_written[unit] = nil
 		end
+
+		for unit, entries in pairs(_fin_attached) do
+			local restored = true
+
+			if Unit_alive(unit) then
+				for k = 1, #entries do
+					local name = stock_name(entries[k].material)
+
+					if not name or not pcall(Unit_set_material, unit, entries[k].slot, name) then
+						restored = false
+					end
+				end
+			end
+
+			if restored then
+				_fin_attached[unit] = nil
+			end
+
+			_fin_owner[unit] = nil
+		end
+
+		if next(_fin_attached) ~= nil then
+			mod:info("plasma fins: a stock fin material could not be resolved, package materials stay attached")
+		end
+	end
+
+	function glow.in_use()
+		for unit in pairs(_fin_attached) do
+			if Unit_alive(unit) then
+				return true
+			end
+
+			_fin_attached[unit] = nil
+		end
+
+		return false
 	end
 
 	function glow.written(unit)

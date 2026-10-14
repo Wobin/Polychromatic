@@ -34,7 +34,7 @@ return function(mod, core, data_list)
 	local _copies = nil
 	local _pool = {}
 	local _live = {}
-	local _streams = setmetatable({}, { __mode = "k" })
+	local _streams = {}
 	local lights = {}
 
 	local function copies()
@@ -116,10 +116,16 @@ return function(mod, core, data_list)
 		end
 
 		if #_live >= POOL_LIMIT then
-			entry = table.remove(_live, 1)
-			entry.done = true
+			for i = 1, #_live do
+				if _live[i].world == world then
+					entry = table.remove(_live, i)
+					entry.done = true
 
-			return entry
+					return entry
+				end
+			end
+
+			return nil
 		end
 
 		if not Application.can_get_resource("unit", LIGHT_UNIT) then

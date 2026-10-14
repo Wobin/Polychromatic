@@ -137,12 +137,6 @@ local function detail()
 		mark = at
 	end
 
-	function recorder.since(group, name, from)
-		local list = slot(group, name)
-
-		list[name] = list[name] + (now() - from)
-	end
-
 	function recorder.count(group, name, n)
 		local list = slot(group, name)
 
@@ -177,4 +171,4 @@ local function detail()
 	return recorder
 end
 
-return { start = start, detail = detail, now = function() return now() end }
+return { start = start, detail = detail }

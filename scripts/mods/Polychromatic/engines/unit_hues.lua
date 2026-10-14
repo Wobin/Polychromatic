@@ -1,6 +1,7 @@
 return function(mod, core, data_list)
+	local murmur_preimage = core.murmur_preimage
 	local HUES = 12
-	local THRESHOLD_SETTINGS = { mine = "shield_damage_threshold", team = "shield_team_damage_threshold" }
+	local THRESHOLD_SETTINGS = { mine = "shield_mine_damage_threshold", team = "shield_team_damage_threshold" }
 	local UNITS = {}
 	local SMOKE_UNITS = {}
 
@@ -30,9 +31,29 @@ return function(mod, core, data_list)
 	local _entry_of = setmetatable({}, { __mode = "k" })
 	local _applied = setmetatable({}, { __mode = "k" })
 	local _owner = setmetatable({}, { __mode = "k" })
+	local _attached = setmetatable({}, { __mode = "k" })
+	local _smoke_copies = setmetatable({}, { __mode = "k" })
+	local _smoke_pending = false
+	local _stock_names = {}
 	local _threshold = { mine = 0, team = 0 }
 	local _damaged_hue = {}
 	local hues = {}
+
+	local function stock_name(hex)
+		local name = _stock_names[hex]
+
+		if name == nil then
+			name = murmur_preimage and murmur_preimage(hex) or false
+
+			if name and Application.can_get_resource("material", name) ~= true then
+				name = false
+			end
+
+			_stock_names[hex] = name
+		end
+
+		return name or nil
+	end
 
 	local function names_for(entry)
 		local names = _names[entry]
@@ -127,8 +148,45 @@ return function(mod, core, data_list)
 			return
 		end
 
+		_attached[unit] = entry
 		Unit_set_material(unit, entry.slot, name)
 		_applied[key] = index
+	end
+
+	function hues.restore()
+		for unit, entry in pairs(_attached) do
+			local name = Unit_alive(unit) and stock_name(entry.material)
+
+			if name then
+				if pcall(Unit_set_material, unit, entry.slot, name) then
+					_attached[unit] = nil
+				end
+			elseif not Unit_alive(unit) then
+				_attached[unit] = nil
+			end
+		end
+
+		for key in pairs(_applied) do
+			_applied[key] = nil
+		end
+
+		if hues.in_use() then
+			mod:info("shield and smoke colour: package resources are still attached after restore")
+		end
+	end
+
+	function hues.in_use()
+		for _, list in ipairs({ _attached, _smoke_copies }) do
+			for unit in pairs(list) do
+				if Unit_alive(unit) then
+					return true
+				end
+
+				list[unit] = nil
+			end
+		end
+
+		return false
 	end
 
 	function hues.smoke_unit(unit_name, owner_unit)
@@ -194,8 +252,11 @@ return function(mod, core, data_list)
 
 	mod:hook(smoke_template, "local_unit", function(func, unit_name, position, rotation, material, husk_unit_name, placed_on_unit, owner_unit, ...)
 		local name, spawn_position, spawn_rotation = func(unit_name, position, rotation, material, husk_unit_name, placed_on_unit, owner_unit, ...)
+		local spawn_name = guarded(hues.smoke_unit, name, name, owner_unit)
 
-		return guarded(hues.smoke_unit, name, name, owner_unit), spawn_position, spawn_rotation
+		_smoke_pending = spawn_name ~= name
+
+		return spawn_name, spawn_position, spawn_rotation
 	end)
 
 	mod:hook(smoke_template, "husk_unit", function(func, session, object_id)
@@ -203,9 +264,23 @@ return function(mod, core, data_list)
 		local owner_id = GameSession.game_object_field(session, object_id, "owner_unit_id")
 		local spawner = Managers.state.unit_spawner
 		local owner_unit = owner_id ~= NetworkConstants.invalid_game_object_id and spawner and spawner:unit(owner_id) or nil
+		local spawn_name = guarded(hues.smoke_unit, name, name, owner_unit)
 
-		return guarded(hues.smoke_unit, name, name, owner_unit), spawn_position, spawn_rotation
+		_smoke_pending = spawn_name ~= name
+
+		return spawn_name, spawn_position, spawn_rotation
 	end)
+
+	local function remember_smoke(unit)
+		if _smoke_pending and unit then
+			_smoke_copies[unit] = true
+		end
+
+		_smoke_pending = false
+	end
+
+	mod:hook_safe(smoke_template, "local_init", remember_smoke)
+	mod:hook_safe(smoke_template, "husk_init", remember_smoke)
 
 	hues.refresh()
 

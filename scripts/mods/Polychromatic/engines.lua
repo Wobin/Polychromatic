@@ -2,6 +2,7 @@ local FILES = { "weapon_glow", "colour_channels", "scene_lights", "unit_hues", "
 local REQUIRES = {
 	pools = { "live_tint" },
 	scene_lights = { "live_tint" },
+	burn = { "live_tint" },
 	decal_swap = { "live_tint" },
 	bolt_palettes = { "live_tint" },
 }
@@ -80,31 +81,96 @@ local function script_api(mod, id, core)
 			return
 		end
 
-		mod:hook(target, method, function(func, ...)
-			if state.failed then
-				return func(...)
+		local depth, current, called, stored = 0, nil, false, false
+		local got, res = { n = 0 }, { n = 0 }
+
+		local function store(...)
+			local n = select("#", ...)
+
+			got.n = n
+
+			for i = 1, n do
+				got[i] = (select(i, ...))
 			end
 
-			local called, got = false, nil
+			stored = true
 
-			local function original(...)
-				called = true
-				got = pack(func(...))
+			return ...
+		end
 
-				return unpack(got, 1, got.n)
+		local function original(...)
+			called = true
+
+			return store(current(...))
+		end
+
+		local function capture(ok, ...)
+			local n = select("#", ...)
+
+			res.n = n
+
+			for i = 1, n do
+				res[i] = (select(i, ...))
 			end
 
-			local result = pack(pcall(fn, original, ...))
+			return ok
+		end
+
+		local function nested(func, ...)
+			local nested_called, nested_got = false, nil
+
+			local function nested_original(...)
+				nested_called = true
+				nested_got = pack(func(...))
+
+				return unpack(nested_got, 1, nested_got.n)
+			end
+
+			local result = pack(pcall(fn, nested_original, ...))
 
 			if result[1] then
 				return unpack(result, 2, result.n)
 			end
 
-			if called and not got then
+			if nested_called and not nested_got then
 				error(result[2], 0)
 			end
 
 			disable(result[2])
+
+			if nested_called then
+				return unpack(nested_got, 1, nested_got.n)
+			end
+
+			return func(...)
+		end
+
+		mod:hook(target, method, function(func, ...)
+			if state.failed then
+				return func(...)
+			end
+
+			if depth > 0 then
+				return nested(func, ...)
+			end
+
+			depth, current, called, stored = 1, func, false, false
+
+			local ok = capture(pcall(fn, original, ...))
+
+			depth, current = 0, nil
+
+			if ok then
+				return unpack(res, 1, res.n)
+			end
+
+			local err = res[1]
+
+			if called and not stored then
+				error(err, 0)
+			end
+
+			disable(err)
 
 			if called then
 				return unpack(got, 1, got.n)

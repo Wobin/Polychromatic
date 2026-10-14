@@ -46,8 +46,9 @@ A few effects are shared by more than one source and are routed at spawn:
   and Smite, and Brain Burst and Assail draw the same aim marker. It takes the colour of the blitz the caster is
   holding; with any other weapon in hand it stays stock.
 
-Both routes live inside the module that owns the sources (Staves, Psyker). The blitz route reads its weapon to
-source table from the Psyker module's `data/blitz_routing.lua`.
+The staff route lives in the base (`engines/staff_routing.lua`): its staff template names, effect paths and the
+Trauma default are fixed there, and a module enables it by declaring the `staff_routing` engine. The blitz route reads
+its weapon to source table from the Psyker module's `data/blitz_routing.lua`.
 
 ### Showing and hiding
 
@@ -315,8 +316,8 @@ Each module lists its sources by name. A source is present only while its module
 
 - The companion's flamer stream: **live tint**.
 - The stream's light: **replacement lights** that follow the stream.
-- Enemies it sets alight: **hue copies** (burn palette) and **burn body glow**, when "Burning enemies follow these
-  settings" is on.
+- Enemies it sets alight: **hue copies** (the skull's own burn palette, generated from the skull's saturation and
+  brightness) and **burn body glow**, when "Burning enemies follow these settings" is on.
 
 #### Servo-Skull las (mine, team)
 

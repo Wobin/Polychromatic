@@ -107,11 +107,13 @@ return function(mod, deps)
 		set_open_view_title(old_title, title)
 	end
 
-	mod:hook_safe(get_mod("DMF"), "set_mod_state", function(target_mod)
-		if target_mod and target_mod.get_name and target_mod:get_name() == "Redshift" then
-			refresh_sniper_group_title()
-		end
-	end)
+	if deps.has_sniper then
+		mod:hook_safe(get_mod("DMF"), "set_mod_state", function(target_mod)
+			if target_mod and target_mod.get_name and target_mod:get_name() == "Redshift" then
+				refresh_sniper_group_title()
+			end
+		end)
+	end
 
 	local function find_widget(list, target)
 		if type(list) ~= "table" then

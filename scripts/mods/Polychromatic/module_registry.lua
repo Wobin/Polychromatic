@@ -76,8 +76,28 @@ local function malformed(manifest)
 	return nil
 end
 
-local function merge_redirects(list)
-	local merged, conflicts, by_stock = {}, {}, {}
+local function same_payload(first, entry, module, identity)
+	if first.sha256 ~= entry.sha256 or first.sha256 == nil and first.file ~= entry.file then
+		return false
+	end
+
+	if not identity then
+		return true
+	end
+
+	local kept, offered = identity(first, first.module), identity(entry, module)
+
+	return kept == nil or offered == nil or kept == offered
+end
+
+local function merge_redirects(list, identity, into)
+	local merged, conflicts, by_stock = into or {}, {}, {}
+
+	for _, entry in ipairs(merged) do
+		if type(entry) == "table" and type(entry.stock) == "string" and not by_stock[entry.stock] then
+			by_stock[entry.stock] = entry
+		end
+	end
 
 	for _, group in ipairs(list or {}) do
 		for _, entry in ipairs(group.list or {}) do
@@ -96,7 +116,7 @@ local function merge_redirects(list)
 				copy.module = group.module
 				by_stock[entry.stock] = copy
 				merged[#merged + 1] = copy
-			elseif first.sha256 ~= entry.sha256 or first.sha256 == nil and first.file ~= entry.file then
+			elseif not same_payload(first, entry, group.module, identity) then
 				conflicts[#conflicts + 1] = { stock = entry.stock, module = group.module, kept = first.module, reason = "different contents" }
 			end
 		end
