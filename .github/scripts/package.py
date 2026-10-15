@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import io
 import json
 import re
@@ -34,6 +35,80 @@ def read_archive(rev, repo):
             if m.isfile():
                 files[m.name] = (tar.extractfile(m).read(), m.mtime)
     return files
+
+
+def tree_blobs(rev, repo):
+    out = subprocess.run(
+        ["git", "-C", str(repo), "ls-tree", "-r", "-z", "--full-tree", rev],
+        check=True, stdout=subprocess.PIPE,
+    ).stdout
+    blobs = {}
+    for rec in out.split(b"\0"):
+        if not rec:
+            continue
+        meta, path = rec.split(b"\t", 1)
+        mode, kind, oid = meta.split(b" ")
+        if kind == b"blob":
+            blobs[path.decode("utf-8")] = oid.decode("ascii")
+    return blobs
+
+
+def fingerprint(names, blobs):
+    h = hashlib.sha256()
+    for name in sorted(names):
+        rel = name[len(ROOT) + 1:]
+        oid = blobs.get(rel)
+        if oid is None:
+            fail("archive entry %s has no blob in the tree" % name)
+        h.update(rel.encode("utf-8") + b"\0" + oid.encode("ascii") + b"\n")
+    return h.hexdigest()
+
+
+def module_labels(files, strict):
+    modules = {}
+    prefix = ROOT + "/modules/"
+    for name in files:
+        if name.startswith(prefix):
+            parts = name[len(prefix):].split("/")
+            if len(parts) > 1:
+                modules.setdefault(parts[0], None)
+    if strict and not modules:
+        fail("no modules found")
+    labels = {}
+    for mid in modules:
+        entry = files.get(prefix + mid + "/module.lua")
+        m = entry and LABEL_RE.search(entry[0].decode("utf-8", "replace"))
+        if m:
+            labels[mid] = m.group(1)
+        elif strict:
+            fail("module %s has %s" % (mid, "no label" if entry else "no module.lua"))
+    if strict and len(set(labels.values())) != len(labels):
+        fail("duplicate module labels")
+    return labels
+
+
+def plan_zips(files, labels):
+    prefix = ROOT + "/modules/"
+    zips = [
+        {"key": "Polychromatic", "file": FULL, "category": "main", "names": list(files)},
+        {"key": "Polychromatic_Empty", "file": BASE, "category": "main",
+         "names": [n for n in files if not n.startswith(prefix)]},
+    ]
+    for mid in sorted(labels, key=lambda k: labels[k]):
+        label = labels[mid]
+        zips.append({"key": label, "file": "Polychromatic - %s.zip" % label, "category": "optional",
+                     "names": [n for n in files if n.startswith(prefix + mid + "/")]})
+    return zips
+
+
+def matrix_rows(rev, repo, strict=True):
+    files = read_archive(rev, repo)
+    labels = module_labels(files, strict)
+    zips = plan_zips(files, labels)
+    blobs = tree_blobs(rev, repo)
+    for z in zips:
+        z["fingerprint"] = fingerprint(z["names"], blobs)
+    return files, labels, zips
 
 
 def write_zip(path, entries):
@@ -74,59 +149,44 @@ def main():
     ap.add_argument("--rev", default="HEAD")
     ap.add_argument("--repo", default=".")
     ap.add_argument("--out", required=True)
+    ap.add_argument("--fingerprints-only", action="store_true",
+                    help="write only matrix.json (rows and fingerprints), no zips and no layout checks")
     a = ap.parse_args()
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
 
-    files = read_archive(a.rev, a.repo)
+    if a.fingerprints_only:
+        _, _, zips = matrix_rows(a.rev, a.repo, strict=False)
+        rows = [{k: z[k] for k in ("key", "file", "category", "fingerprint")} for z in zips if z["names"]]
+        (out / "matrix.json").write_text(json.dumps(rows), encoding="utf-8")
+        for row in rows:
+            print("%-34s %s" % (row["file"], row["fingerprint"][:12]))
+        return
+
+    files, labels, zips = matrix_rows(a.rev, a.repo, strict=True)
     mod = files.get(ROOT + "/Polychromatic.mod")
     if mod is None or not mod[0].strip():
         fail("Polychromatic.mod missing or empty in archive")
-
-    modules = {}
     prefix = ROOT + "/modules/"
-    for name in files:
-        if name.startswith(prefix):
-            parts = name[len(prefix):].split("/")
-            if len(parts) > 1:
-                modules.setdefault(parts[0], None)
-    if not modules:
-        fail("no modules found")
-    for mid in modules:
-        entry = files.get(prefix + mid + "/module.lua")
-        if entry is None:
-            fail("module %s has no module.lua" % mid)
-        m = LABEL_RE.search(entry[0].decode("utf-8"))
-        if not m:
-            fail("module %s has no label" % mid)
-        modules[mid] = m.group(1)
-    if len(set(modules.values())) != len(modules):
-        fail("duplicate module labels")
 
     matrix = []
-    write_zip(out / FULL, files)
-    base = {n: v for n, v in files.items() if not n.startswith(prefix)}
-    write_zip(out / BASE, base)
-    matrix.append({"key": "Polychromatic", "file": FULL, "category": "main"})
-    matrix.append({"key": "Polychromatic_Empty", "file": BASE, "category": "main"})
-    for mid in sorted(modules, key=lambda k: modules[k]):
-        label = modules[mid]
-        fname = "Polychromatic - %s.zip" % label
-        sub = {n: v for n, v in files.items() if n.startswith(prefix + mid + "/")}
-        write_zip(out / fname, sub)
-        matrix.append({"key": label, "file": fname, "category": "optional"})
+    for z in zips:
+        write_zip(out / z["file"], {n: files[n] for n in z["names"]})
+        matrix.append({k: z[k] for k in ("key", "file", "category", "fingerprint")})
 
     verify(out / FULL, [ROOT + "/Polychromatic.mod", ROOT + "/bin/asset-redirect.dll"])
     verify(out / BASE, [ROOT + "/Polychromatic.mod", ROOT + "/bin/asset-redirect.dll"],
            must_lack_prefix=prefix)
-    for mid in modules:
-        verify(out / ("Polychromatic - %s.zip" % modules[mid]),
+    for mid in labels:
+        verify(out / ("Polychromatic - %s.zip" % labels[mid]),
                [prefix + mid + "/module.lua"], only_prefix=prefix + mid + "/")
 
     (out / "matrix.json").write_text(json.dumps(matrix), encoding="utf-8")
     for row in matrix:
-        print("%-9s %-34s %7d bytes" % (row["category"], row["file"], (out / row["file"]).stat().st_size))
+        print("%-9s %-34s %7d bytes  %s" % (row["category"], row["file"],
+                                           (out / row["file"]).stat().st_size, row["fingerprint"][:12]))
     print("OK: %d zips" % len(matrix))
 
 
-main()
+if __name__ == "__main__":
+    main()

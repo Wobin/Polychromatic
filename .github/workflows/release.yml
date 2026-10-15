@@ -11,6 +11,13 @@ on:
       changelog:
         description: Changelog text for the mod page (dispatch runs have no release body)
         required: false
+      force:
+        description: Upload every zip to Nexus, even when its contents match the previous release
+        type: boolean
+        default: false
+      only:
+        description: Upload only these rows (comma-separated keys, e.g. Grenades,Polychromatic_Empty)
+        required: false
 
 jobs:
   package:
@@ -21,12 +28,35 @@ jobs:
       matrix: ${{ steps.build.outputs.matrix }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
 
       - name: Package and verify eight zips (no git artefacts)
+        run: python3 .github/scripts/package.py --rev HEAD --repo . --out dist
+
+      - name: Plan Nexus uploads against the previous release
         id: build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CURRENT_TAG: ${{ github.event.release.tag_name || inputs.version }}
+          FORCE: ${{ inputs.force }}
+          ONLY: ${{ inputs.only }}
         run: |
-          python3 .github/scripts/package.py --rev HEAD --repo . --out dist
-          echo "matrix=$(jq -c . dist/matrix.json)" >> "$GITHUB_OUTPUT"
+          gh release list --limit 1000 --json tagName,isDraft,isPrerelease \
+            --jq '.[] | select((.isDraft or .isPrerelease) | not) | .tagName' > "$RUNNER_TEMP/release-tags.txt"
+          PREV=$(python3 .github/scripts/release_plan.py previous-tag --repo . --rev HEAD \
+            --tags-file "$RUNNER_TEMP/release-tags.txt" --exclude "$CURRENT_TAG")
+          PREV_MATRIX=""
+          if [ -n "$PREV" ]; then
+            echo "Previous release tag: $PREV"
+            python3 .github/scripts/package.py --rev "refs/tags/$PREV" --repo . --out "$RUNNER_TEMP/prev" --fingerprints-only
+            PREV_MATRIX="$RUNNER_TEMP/prev/matrix.json"
+          else
+            echo "No previous release tag: every row uploads"
+          fi
+          python3 .github/scripts/release_plan.py plan --current dist/matrix.json --previous "$PREV_MATRIX" \
+            --previous-tag "$PREV" --force "$FORCE" --only "$ONLY" --out "$RUNNER_TEMP/plan.json" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "matrix=$(jq -c . "$RUNNER_TEMP/plan.json")" >> "$GITHUB_OUTPUT"
           rm dist/matrix.json
 
       - name: Upload build artifact
@@ -53,7 +83,21 @@ jobs:
       matrix:
         include: ${{ fromJSON(needs.package.outputs.matrix) }}
     steps:
+      - name: Plan
+        env:
+          KEY: ${{ matrix.key }}
+          REASON: ${{ matrix.reason }}
+          UPLOAD: ${{ matrix.upload }}
+          CHANGELOG: ${{ matrix.changelog }}
+        run: |
+          if [ "$UPLOAD" = "true" ]; then
+            echo "Uploading $KEY to Nexus: $REASON (changelog: $CHANGELOG)"
+          else
+            echo "Skipping Nexus upload for $KEY: $REASON"
+          fi
+
       - uses: actions/checkout@v7
+        if: ${{ matrix.upload }}
 
       - name: Set version
         env:
@@ -65,12 +109,14 @@ jobs:
           echo "VERSION=$RAW_VERSION" >> "$GITHUB_ENV"
 
       - name: Download zips
+        if: ${{ matrix.upload }}
         uses: actions/download-artifact@v7
         with:
           name: Polychromatic-zips
           path: dist
 
       - name: Resolve Nexus file group id
+        if: ${{ matrix.upload }}
         env:
           FILE_IDS: ${{ vars.NEXUS_FILE_IDS }}
           KEY: ${{ matrix.key }}
@@ -81,7 +127,7 @@ jobs:
           echo "NEXUS_FILE_ID=$FID" >> "$GITHUB_ENV"
 
       - name: Resolve Nexus global mod id
-        if: ${{ matrix.key == 'Polychromatic' }}
+        if: ${{ matrix.upload && matrix.changelog }}
         env:
           NEXUSMODS_APIKEY: ${{ secrets.NEXUSMODS_APIKEY }}
           GAME_SCOPED_ID: ${{ vars.NEXUS_MOD_ID }}
@@ -90,17 +136,18 @@ jobs:
           echo "NEXUS_GLOBAL_MOD_ID=$MID" >> "$GITHUB_ENV"
 
       - name: Upload to Nexus Mods
+        if: ${{ matrix.upload }}
         env:
           NEXUSMODS_APIKEY: ${{ secrets.NEXUSMODS_APIKEY }}
           ZIP: dist/${{ matrix.file }}
           CATEGORY: ${{ matrix.category }}
           DISPLAY_NAME: ${{ (matrix.key == 'Polychromatic' || matrix.key == 'Polychromatic_Empty') && matrix.key || format('Polychromatic - {0}', matrix.key) }}
           NOTES: ${{ github.event.release.body || inputs.changelog }}
-          IS_FULL: ${{ matrix.key == 'Polychromatic' }}
+          ADD_CHANGELOG: ${{ matrix.changelog }}
         run: |
           set -- --file-id "$NEXUS_FILE_ID" --zip "$ZIP" --version "$VERSION" --category "$CATEGORY" \
             --display-name "$DISPLAY_NAME $VERSION" --description="$NOTES" --update-mod-version
-          if [ "$IS_FULL" = "true" ] && [ -n "$NOTES" ]; then
+          if [ "$ADD_CHANGELOG" = "true" ] && [ -n "$NOTES" ]; then
             set -- "$@" --mod-id "$NEXUS_GLOBAL_MOD_ID" --changelog="$NOTES"
           fi
           python3 .github/scripts/nexus.py upload "$@"
