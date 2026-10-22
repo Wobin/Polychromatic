@@ -1,4 +1,4 @@
-local FILES = { "weapon_glow", "colour_channels", "scene_lights", "unit_hues", "pools", "burn", "staff_routing", "blitz_routing", "decal_swap", "bolt_palettes", "live_tint" }
+local FILES = { "weapon_glow", "colour_channels", "scene_lights", "unit_hues", "pools", "burn", "staff_routing", "blitz_routing", "weapon_routing", "decal_swap", "bolt_palettes", "live_tint" }
 local REQUIRES = {
 	pools = { "live_tint" },
 	scene_lights = { "live_tint" },

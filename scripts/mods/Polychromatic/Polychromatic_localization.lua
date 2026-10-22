@@ -7,6 +7,10 @@ local module_list = polychromatic:io_dofile("Polychromatic/scripts/mods/Polychro
 local registry = module_list.registry(polychromatic, true)
 local SOURCES = registry.sources
 
+local SKIP_REASONS = {
+	api_old = "made for an earlier version of Polychromatic: download the current version of this module",
+}
+
 local function escape(text)
 	return (tostring(text):gsub("%%", "%%%%"))
 end
@@ -48,6 +52,9 @@ local function modules_detail()
 		for _, manifest in ipairs(registry.modules) do
 			lines[#lines + 1] = escape((manifest.label or manifest.id) .. " " .. tostring(manifest.version))
 		end
+
+		lines[#lines + 1] = ""
+		lines[#lines + 1] = "The state of each module's effect package is reported by the /poly_check command."
 	end
 
 	if #registry.skipped > 0 then
@@ -55,7 +62,9 @@ local function modules_detail()
 		lines[#lines + 1] = "Not loaded:"
 
 		for _, entry in ipairs(registry.skipped) do
-			lines[#lines + 1] = escape(tostring(entry.id) .. " (" .. tostring(entry.reason) .. ")")
+			local reason = SKIP_REASONS[entry.kind] or entry.reason
+
+			lines[#lines + 1] = escape(tostring(entry.id) .. " (" .. tostring(reason) .. ")")
 		end
 	end
 
@@ -76,29 +85,37 @@ local localization = {
 	game_format_unknown = { en = "Polychromatic: could not read the game's effect file format. Fire and las colours stay stock this session." },
 	sources_heading = { en = "Sources" },
 	general_heading = { en = general_title() },
-	effect_packages = { en = "Effect packages" },
-	effect_packages_button = { en = "Install or remove" },
-	effect_packages_installed = { en = "Effect packages: installed" },
-	effect_packages_removing = { en = "Effect packages: removed from next start" },
-	effect_packages_installing = { en = "Effect packages: installed from next start" },
-	effect_packages_absent = { en = "Effect packages: not installed" },
-	effect_packages_checking = { en = "Effect packages: checking" },
-	effect_packages_button_checking = { en = "Checking" },
-	effect_packages_button_installed = { en = "Remove" },
-	effect_packages_button_removing = { en = "Reinstall" },
-	effect_packages_button_installing = { en = "Remove" },
-	effect_packages_button_absent = { en = "Install" },
-	effect_packages_description = { en = "Polychromatic registers its extra effect copies (barrel fire and others) as game packages the first time it loads, keeping a backup of the one game file it changes. Hold this to remove them and put the game's own files back; hold it again to reinstall. Either change takes effect from the next game start.\n\n" .. modules_detail() },
-	packages_installed = { en = "Polychromatic: effect packages installed. Restart the game to use them." },
-	packages_removed = { en = "Polychromatic: effect packages removed. The game uses its own files from the next start." },
-	packages_remove_next_launch = { en = "Polychromatic: effect packages are in use this session. They will be removed when the game next starts." },
-	packages_failed = { en = "Polychromatic: could not install the effect packages; built-in colours are used" },
-	packages_nothing_to_install = { en = "Polychromatic: no modules installed, so there are no effect packages to install." },
-	modules_changed = { en = "Polychromatic: modules changed" },
-	restart_to_apply = { en = "Restart to apply." },
-	modules_none = { en = "Polychromatic: no modules installed; effect packages removed from the next start." },
+	effect_packages_enabled = { en = "Load effect packages" },
+	effect_packages_enabled_description = { en = "Loads the recoloured effect copies of every installed module. Nothing is written to the game folder. Untick to use the game's own effects.\n\n" .. modules_detail() },
+	legacy_install_removed = { en = "Polychromatic: the previous version's install was removed from the game folder." },
+	legacy_install_failed = { en = "Polychromatic: the previous version's install could not be removed. The details are in the console log." },
+	legacy_install_timed_out = { en = "Polychromatic: removing the previous version's install did not finish in time. The details are in the console log." },
+	legacy_reason_dll_old = { en = "Polychromatic: the previous version's install could not be checked, because the loaded asset redirect library is older than this version needs." },
+	modules_added = { en = "Polychromatic: module added: %s" },
+	modules_removed = { en = "Polychromatic: module removed: %s" },
+	modules_changed_refresh = { en = "Polychromatic: module updated: %s. Its effects refresh at the next mission or hub load." },
+	host_failed = { en = "Polychromatic: %s effects stay as the game draws them (%s)" },
+	hosts_failed = { en = "Polychromatic: effects stay as the game draws them (%s)" },
+	host_reason_in_use = { en = "the game has loaded its host package" },
+	host_reason_displaced = { en = "another mod replaces the same file" },
+	host_reason_refused = { en = "the asset redirect library refused the file" },
+	host_reason_restart_required = { en = "the game opened the file before it could be replaced" },
+	host_reason_failed = { en = "the effect package could not be composed" },
+	host_reason_unassigned = { en = "no host is assigned to this module" },
+	host_reason_stream = { en = "a data file for this module could not be replaced (%s)" },
+	host_reason_no_native = { en = "the asset redirect library is not loaded" },
+	host_reason_dll_old = { en = "the loaded asset redirect library is older than effect packages need" },
+	host_reason_busy = { en = "the asset redirect library stayed busy" },
+	host_reason_timeout = { en = "composing the effect package did not finish in time" },
+	host_reason_unavailable = { en = "the asset redirect library reported no state for the file" },
+	host_reason_duplicate_stream = { en = "another module provides the same data file" },
+	poly_check_summary = { en = "Polychromatic %s: %s modules, hosts: %s active, %s other, redirect library %s, redirects %s of %s served, %s effects seen. Details are in the console log." },
+	poly_check_library_loaded = { en = "loaded" },
+	poly_check_library_missing = { en = "not loaded" },
+	poly_check_no_native = { en = "The asset redirect library (asset-redirect.dll) did not load, so only las beams can be recoloured. Check that the file is still in the mod's bin folder and was not quarantined by antivirus. The path tried and the reason are in the console log." },
+	poly_check_refused = { en = "%s redirects were refused, most likely because a game update changed the files they replace." },
 	debug_logging = { en = "Debug logging" },
-	debug_logging_description = { en = "Writes Polychromatic's setup details to the console log: which patched files are served at launch, a full /poly_check report at launch, and a line each time a patched effect package loads. Turning it on also writes a /poly_check report straight away (once per game session); restart the game to capture the launch details too." },
+	debug_logging_description = { en = "Writes Polychromatic's setup details to the console log: which patched files are served at launch, a full /poly_check report at launch, and a line each time a patched effect package loads. Turning it on also writes a /poly_check report straight away (once per game session)." },
 	poly_check_description = { en = "Polychromatic: report the setup state to the console log for troubleshooting." },
 	flamer_burn = { en = "Burning enemies follow these settings" },
 	skull_burn = { en = "Burning enemies follow these settings" },

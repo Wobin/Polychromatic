@@ -175,13 +175,7 @@ widgets[#widgets + 1] = {
 	setting_id = "general_heading",
 	type = "group",
 	sub_widgets = {
-		{
-			setting_id = "effect_packages",
-			type = "button",
-			button_text = "effect_packages_button",
-			button_trigger = "held",
-			function_name = "toggle_effect_packages",
-		},
+		{ setting_id = "effect_packages_enabled", type = "checkbox", default_value = true },
 		{ setting_id = "debug_logging", type = "checkbox", default_value = false },
 	},
 }

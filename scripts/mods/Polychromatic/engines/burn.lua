@@ -1,6 +1,8 @@
 return function(mod, core, data_list)
-	local AILMENT_SETTINGS = require("scripts/settings/ailments/ailment_settings")
-	local BURN_IDS = { ailment_templates = AILMENT_SETTINGS.effect_templates }
+	local AILMENT_SETTINGS = "scripts/settings/ailments/ailment_settings"
+	local AILMENT_UTILITY = "scripts/utilities/ailment"
+	local BURN_IDS = { ailment_templates = {} }
+	local AILMENT_KEYS = {}
 	local UNPATCHED_BREED_PATTERNS = {}
 
 	for _, data in ipairs(data_list) do
@@ -9,7 +11,7 @@ return function(mod, core, data_list)
 		end
 
 		for _, key in ipairs({ "soulblaze_ailment", "flamer_ailment" }) do
-			BURN_IDS[key] = BURN_IDS[key] or (data[key] and AILMENT_SETTINGS.effects[data[key]])
+			AILMENT_KEYS[key] = AILMENT_KEYS[key] or data[key]
 		end
 
 		for _, pattern in ipairs(data.unpatched_breeds or {}) do
@@ -32,7 +34,7 @@ return function(mod, core, data_list)
 	local _starts = setmetatable({}, { __mode = "k" })
 	local _failed = false
 
-	mod:hook_safe(require("scripts/utilities/ailment"), "play_ailment_effect_template", function(unit, ailment_effect, optional_include_children, optional_custom_duration, optional_custom_offset_time)
+	local function remember_start(unit, ailment_effect, optional_include_children, optional_custom_duration, optional_custom_offset_time)
 		if (ailment_effect ~= BURN_IDS.soulblaze_ailment and ailment_effect ~= BURN_IDS.flamer_ailment) or not unit or not Unit.alive(unit) then
 			return
 		end
@@ -44,6 +46,18 @@ return function(mod, core, data_list)
 			offset = optional_custom_offset_time or template.offset_time,
 			duration = optional_custom_duration or template.duration,
 		}
+	end
+
+	core.after_boot("burn", function()
+		local settings = require(AILMENT_SETTINGS)
+
+		BURN_IDS.ailment_templates = settings.effect_templates
+
+		for key, name in pairs(AILMENT_KEYS) do
+			BURN_IDS[key] = settings.effects[name]
+		end
+
+		mod:hook_safe(require(AILMENT_UTILITY), "play_ailment_effect_template", remember_start)
 	end)
 
 	local function patched(unit)

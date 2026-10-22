@@ -1,4 +1,4 @@
-local LIB_VERSION = 6
+local LIB_VERSION = 10
 local INSTANCE_KEY = "__asset_redirect_instance"
 local CDEF_TYPE = "AssetRedirect_CDEF"
 local INSTALLED_CDEF_TYPE = "AssetRedirect_INSTALLED_CDEF"
@@ -6,6 +6,7 @@ local VERIFY_CDEF_TYPE = "AssetRedirect_VERIFY_CDEF"
 local DLL_NAME = "asset-redirect.dll"
 local TEXT_CAP = 2048
 local STATS_CAP = 262144
+local STATS_RETRY_LIMIT = 67108864
 local TRACE_CAP = 262144
 local VERIFY_CAP = 65536
 local MAIN_WAIT_MS = 25
@@ -53,6 +54,53 @@ local instance = existing or {
 	newer_available = nil,
 }
 
+local function bound_native()
+	if instance.native_state == "ready" then
+		return instance.native
+	end
+
+	return nil
+end
+
+local function index_symbol(lib, symbol)
+	return lib[symbol]
+end
+
+local function undeclared(err)
+	return type(err) == "string" and err:find("missing declaration", 1, true) ~= nil
+end
+
+local function has_symbol(symbol)
+	local lib = bound_native()
+
+	if lib == nil or type(symbol) ~= "string" then
+		return false
+	end
+
+	local cache = instance.symbols
+
+	if cache == nil or instance.symbols_of ~= lib then
+		cache = {}
+		instance.symbols = cache
+		instance.symbols_of = lib
+	end
+
+	local known = cache[symbol]
+
+	if known ~= nil then
+		return known
+	end
+
+	local ok, value = pcall(index_symbol, lib, symbol)
+	local present = ok and value ~= nil
+
+	if ok or not undeclared(value) then
+		cache[symbol] = present
+	end
+
+	return present
+end
+
 local facade = {
 	register = function(mod, spec)
 		return instance.core.register(mod, spec, LIB_VERSION)
@@ -74,6 +122,15 @@ local facade = {
 		end
 
 		return false
+	end,
+	opens = function(stock)
+		local opens = instance.core.opens
+
+		if opens then
+			return opens(stock)
+		end
+
+		return nil
 	end,
 	clear = function(mod)
 		return instance.core.clear(mod)
@@ -98,6 +155,48 @@ local facade = {
 		end
 
 		return nil
+	end,
+	native = function()
+		return bound_native()
+	end,
+	has = function(symbol)
+		return has_symbol(symbol)
+	end,
+	load_native = function(mod)
+		local load_early = instance.core.load_early
+
+		if load_early then
+			return load_early(mod, LIB_VERSION)
+		end
+
+		return bound_native()
+	end,
+	prune = function(mod, keep)
+		local prune = instance.core.prune
+
+		if prune then
+			return prune(mod, keep)
+		end
+
+		return nil
+	end,
+	registered = function(mod)
+		local registered = instance.core.registered
+
+		if registered then
+			return registered(mod)
+		end
+
+		return nil
+	end,
+	stats = function()
+		local stats = instance.core.stats
+
+		if stats then
+			return stats()
+		end
+
+		return nil, "this library has no stats reader"
 	end,
 }
 
@@ -193,19 +292,58 @@ local function hash_file(path)
 	return nil, ffi.string(out)
 end
 
-local function seed_from_stats()
-	local out = text_buffer(STATS_CAP)
+local function call_stats(native, cap)
+	local out = text_buffer(cap)
+	local size = native.AssetRedirect_Stats(out, cap)
 
-	if instance.native.AssetRedirect_Stats(out, STATS_CAP) ~= 1 or not cjson then
-		return
+	return size, ffi.string(out)
+end
+
+local function read_stats()
+	local native = bound_native()
+
+	if not native then
+		return nil, "the native library is not loaded"
 	end
 
-	local stats = cjson.decode(ffi.string(out))
+	if not cjson then
+		return nil, "cjson is unavailable"
+	end
+
+	local cap = STATS_CAP
+	local size, text = call_stats(native, cap)
+
+	if size > 1 and size <= STATS_RETRY_LIMIT then
+		cap = size
+		size, text = call_stats(native, cap)
+	end
+
+	if size < 1 then
+		return nil, string_format("the stats call failed or the stats did not fit in %d bytes", cap)
+	end
+
+	if text == "" then
+		return nil, string_format("the stats did not fit in %d bytes", cap)
+	end
+
+	local ok, stats = pcall(cjson.decode, text)
+
+	if ok and type(stats) == "table" then
+		return stats
+	end
+
+	return nil, "the stats text is not readable"
+end
+
+local function seed_from_stats()
+	local stats = read_stats()
 	local entries = type(stats) == "table" and stats.entries
 
 	if type(entries) ~= "table" then
 		return
 	end
+
+	instance.stats_partial = stats.truncated == true
 
 	for _, entry in ipairs(entries) do
 		if type(entry.key) == "string" and entry.status == "pinned" then
@@ -223,18 +361,23 @@ local function seed_from_stats()
 	end
 end
 
-local function fail_native(mod, reason)
+local function fail_native(mod, reason, path)
 	instance.native_state = "unavailable"
 	instance.native_error = reason
 
-	mod:error("Asset Redirect could not load its library, so replacement files are off this session: %s", reason)
+	mod:info("Asset Redirect library load failed from %s: %s", tostring(path), tostring(reason))
+
+	if not instance.native_told then
+		instance.native_told = true
+		mod:error("%s", "Asset Redirect could not load its library, so replacement files are off this session. The reason is in the log.")
+	end
 end
 
 local function load_native(candidate)
 	local mod = candidate.mod
 
 	if not ffi then
-		fail_native(mod, "Mods.lua.ffi is unavailable")
+		fail_native(mod, "Mods.lua.ffi is unavailable", DLL_NAME)
 
 		return
 	end
@@ -258,13 +401,19 @@ local function load_native(candidate)
 		path = DLL_NAME
 	end
 
+	instance.native_candidate = candidate
+	instance.native_path = path
+
 	local ok, lib = pcall(ffi.load, path)
 
 	if not ok then
-		fail_native(mod, tostring(lib))
+		instance.native_load_failed = true
+		fail_native(mod, tostring(lib), path)
 
 		return
 	end
+
+	instance.native_load_failed = false
 
 	if instance.late then
 		local probed, installed = pcall(function() return lib.AssetRedirect_Installed() end)
@@ -277,7 +426,7 @@ local function load_native(candidate)
 	local err = text_buffer(TEXT_CAP)
 
 	if lib.AssetRedirect_Install(err, TEXT_CAP) ~= 1 then
-		fail_native(mod, ffi.string(err))
+		fail_native(mod, ffi.string(err), path)
 
 		return
 	end
@@ -327,6 +476,34 @@ local function bad_relative(path)
 	return type(path) ~= "string" or path == "" or path:sub(1, 1) == "/" or path:find("\\", 1, true) ~= nil or path:find("..", 1, true) ~= nil
 end
 
+local function is_absolute(path)
+	return type(path) == "string" and (path:find("^%a:[\\/]") ~= nil or path:find("^[\\/][\\/][^\\/]+[\\/][^\\/]+") ~= nil)
+end
+
+local function parent_segment(path)
+	local padded = "/" .. path .. "/"
+
+	return padded:find("[\\/]%.%.?[\\/]") ~= nil
+end
+
+local function bad_file(path)
+	if is_absolute(path) then
+		return parent_segment((path:gsub("^[\\/][\\/]", "")))
+	end
+
+	return bad_relative(path)
+end
+
+local function payload_path_of(reg)
+	local file = reg.spec.file
+
+	if is_absolute(file) then
+		return file
+	end
+
+	return "mods/" .. mod_folder(reg.mod) .. "/" .. file
+end
+
 local function field_error(spec)
 	if type(spec) ~= "table" then
 		return "the registration is not a table"
@@ -336,7 +513,7 @@ local function field_error(spec)
 		return "stock must be a lowercase path under bundle with forward slashes"
 	end
 
-	if bad_relative(spec.file) then
+	if bad_file(spec.file) then
 		return "file must be a path inside the mod folder with forward slashes"
 	end
 
@@ -358,6 +535,10 @@ local function field_error(spec)
 
 	if spec.contract ~= nil and (type(spec.contract) ~= "string" or spec.contract == "") then
 		return "contract must be a non-empty string"
+	end
+
+	if spec.late ~= nil and type(spec.late) ~= "boolean" then
+		return "late must be true or false"
 	end
 
 	return nil
@@ -400,7 +581,7 @@ local function evaluate(reg)
 		end
 	end
 
-	local payload = "mods/" .. mod_folder(reg.mod) .. "/" .. spec.file
+	local payload = payload_path_of(reg)
 	local hash, payload_err = hash_file(payload)
 
 	if not hash then
@@ -464,14 +645,25 @@ local function resolve(stock)
 		local target_hash = winner and winner.payload_hash
 		local pushed_hash = pushed and pushed.hash
 
-		if target_hash == pushed_hash then
+		local same_bytes = target_hash ~= nil and target_hash == pushed_hash
+
+		if target_hash == pushed_hash and (not same_bytes or winner.payload_path == pushed.path) then
 			file.winner = winner
 
 			return
 		end
 
-		if native.AssetRedirect_Opens(stock) > 0 or (pushed == nil and (instance.committed or instance.late)) then
-			file.restart = true
+		local late_winner = winner and winner.spec.late == true
+		local late_removal = winner == nil and file.winner ~= nil and file.winner.spec.late == true
+
+		if not same_bytes then
+			if late_winner or late_removal then
+				if pushed == nil and native.AssetRedirect_Opens(stock) > 0 then
+					file.restart = true
+				end
+			elseif native.AssetRedirect_Opens(stock) > 0 or (pushed == nil and (instance.committed or instance.late)) then
+				file.restart = true
+			end
 		end
 
 		if not winner then
@@ -572,7 +764,7 @@ local function start_verify()
 			for i, reg in ipairs(sendable) do
 				local is_virtual = reg.spec.virtual == true
 
-				reg.verify_path = "mods/" .. mod_folder(reg.mod) .. "/" .. reg.spec.file
+				reg.verify_path = payload_path_of(reg)
 				candidates[i] = string_format('{"file":%s,"sha256":%s,"virtual":%s}', json_string(reg.verify_path), is_virtual and "null" or json_string(reg.expect), is_virtual and "true" or "false")
 			end
 
@@ -857,13 +1049,7 @@ function core.verified()
 	return instance.verify_ms, instance.verify_hashed, instance.verify_pinned
 end
 
-function core.commit()
-	if instance.committed or instance.committing then
-		return
-	end
-
-	instance.committing = true
-
+local function best_candidate()
 	local best
 
 	for _, candidate in ipairs(instance.candidates) do
@@ -872,9 +1058,51 @@ function core.commit()
 		end
 	end
 
-	if best and instance.native_state == "pending" then
+	return best
+end
+
+local function newer_copy_after_failure(best)
+	local tried = instance.native_candidate
+
+	return instance.native_state == "unavailable" and instance.native_load_failed == true and best ~= nil and tried ~= nil and best.version > tried.version
+end
+
+local function bind_best()
+	local best = best_candidate()
+
+	if best and (instance.native_state == "pending" or newer_copy_after_failure(best)) then
 		load_native(best)
 	end
+
+	local bound = instance.native_candidate
+
+	if instance.committing and instance.native_state == "ready" and best and bound and best.version > bound.version then
+		best.mod:info("Asset Redirect library %d in %s runs with the DLL bound early from %s (library %d)", best.version, tostring(best.folder), tostring(bound.folder), bound.version)
+	end
+end
+
+function core.load_early(mod, copy_version)
+	note_candidate(mod, copy_version)
+
+	if not instance.committed and not instance.committing then
+		bind_best()
+	end
+
+	return bound_native()
+end
+
+function core.stats()
+	return read_stats()
+end
+
+function core.commit()
+	if instance.committed or instance.committing then
+		return
+	end
+
+	instance.committing = true
+
+	bind_best()
 
 	local background = instance.native_state == "ready" and instance.can_verify and not instance.late and cjson ~= nil and start_verify()
 
@@ -974,6 +1202,22 @@ function core.pinned(reg)
 	return type(file) == "table" and file.pinned == true
 end
 
+function core.opens(stock)
+	local native = instance.native
+
+	if native == nil or type(stock) ~= "string" then
+		return nil
+	end
+
+	local ok, count = pcall(function() return native.AssetRedirect_Opens(stock) end)
+
+	if ok and type(count) == "number" then
+		return count
+	end
+
+	return nil
+end
+
 local function print_status(mod)
 	core.commit()
 	finish_verify(true)
@@ -1013,7 +1257,8 @@ local function print_status(mod)
 	end
 
 	if instance.native_error then
-		mod:echo("%s", "Asset Redirect library error: " .. instance.native_error)
+		mod:info("Asset Redirect library error: %s", tostring(instance.native_error))
+		mod:echo("%s", "Asset Redirect library error. The reason is in the log.")
 	end
 end
 
@@ -1141,29 +1386,61 @@ function core.register(mod, spec, copy_version)
 	return reg
 end
 
-function core.clear(mod)
-	local owner = mod:get_name()
+local function drop_owned(owner, keep)
 	local settled = finish_verify(true)
+	local dropped = 0
 
 	for stock, file in pairs(instance.files) do
-		local kept = {}
+		if not (keep and keep[stock]) then
+			local kept = {}
 
-		for _, reg in ipairs(file.regs) do
-			if reg.owner ~= owner then
-				kept[#kept + 1] = reg
+			for _, reg in ipairs(file.regs) do
+				if reg.owner ~= owner then
+					kept[#kept + 1] = reg
+				end
 			end
-		end
 
-		if #kept ~= #file.regs then
-			file.regs = kept
+			if #kept ~= #file.regs then
+				dropped = dropped + #file.regs - #kept
+				file.regs = kept
 
-			if not settled then
-				defer(nil, stock)
-			elseif instance.committed and instance.native_state == "ready" then
-				resolve(stock)
+				if not settled then
+					defer(nil, stock)
+				elseif instance.committed and instance.native_state == "ready" then
+					resolve(stock)
+				end
 			end
 		end
 	end
+
+	return dropped
+end
+
+function core.clear(mod)
+	drop_owned(mod:get_name(), nil)
+end
+
+function core.prune(mod, keep)
+	return drop_owned(mod:get_name(), type(keep) == "table" and keep or {})
+end
+
+function core.registered(mod)
+	local owner = mod:get_name()
+	local list = {}
+
+	for stock, file in pairs(instance.files) do
+		for _, reg in ipairs(file.regs) do
+			if reg.owner == owner then
+				list[#list + 1] = stock
+
+				break
+			end
+		end
+	end
+
+	table_sort(list)
+
+	return list
 end
 
 function core.version()

@@ -102,26 +102,14 @@ return function(context)
 		mod:info("redirected load: %s (bundle %s) by %s, prioritized %s, resident %s, state %s, module %s, payload size %s", package_name, bundle, tostring(reference_name), tostring(prioritize), tostring(use_resident_loading), tostring(state), tostring(entry.module), tostring(payload_size))
 	end
 
-	local function native_stats(instance)
-		local lua = rawget(_G, "Mods") and Mods.lua
-		local ffi = lua and lua.ffi
-		local cjson = rawget(_G, "cjson")
-		local native = instance and instance.native
+	local function native_stats()
+		local library = context.redirect_library
 
-		if not ffi or not cjson or not native then
-			return nil
+		if not library or type(library.stats) ~= "function" then
+			return nil, "the asset redirect library is not loaded"
 		end
 
-		local cap = 262144
-		local out = ffi.new("char[?]", cap)
-
-		if native.AssetRedirect_Stats(out, cap) ~= 1 then
-			return nil
-		end
-
-		local ok, stats = pcall(cjson.decode, ffi.string(out))
-
-		return ok and type(stats) == "table" and stats or nil
+		return library.stats()
 	end
 
 	local function stats_by_stock(stats)
@@ -149,11 +137,19 @@ return function(context)
 		return by_stock
 	end
 
+	local function shown(value)
+		if value == nil then
+			return "?"
+		end
+
+		return tostring(value)
+	end
+
 	local function module_report()
 		local registry = context.registry
 
 		if not registry then
-			return
+			return 0, 0
 		end
 
 		for _, manifest in ipairs(registry.modules) do
@@ -223,9 +219,35 @@ return function(context)
 			mod:info("check: module %s ships %s effects but %s is not loaded; they stay untinted", tostring(gap.module), tostring(gap.set), tostring(gap.engine))
 		end
 
-		for _, package in ipairs(registry.packages) do
-			mod:info("check: package %s from %s", tostring(package.name), tostring(package.module))
+		local host_packages = context.effect_packages and context.effect_packages.hosts()
+		local active, other = 0, 0
+
+		local cache_dir, cache_fallback
+
+		for _, manifest in ipairs(registry.modules) do
+			local status = host_packages and host_packages.status(manifest.id) or nil
+			local state = status and status.state or "unassigned"
+			local package = status and status.package
+			local is_loaded = Managers.package ~= nil and package ~= nil and Managers.package:has_loaded(package) and true or false
+
+			if state == "active" then
+				active = active + 1
+			else
+				other = other + 1
+			end
+
+			mod:info("check: module %s host %s (%s) state %s records %s streams %s cached %s loaded %s reason %s detail %s", tostring(manifest.id), shown(status and status.host), shown(package), tostring(state), shown(status and status.records), shown(status and status.streams), shown(status and status.cached), tostring(is_loaded), shown(status and status.reason), shown(status and status.detail))
+
+			if status and status.cache_dir and not cache_dir then
+				cache_dir, cache_fallback = status.cache_dir, status.cache_fallback
+			end
 		end
+
+		if cache_dir then
+			mod:info("check: host cache folder %s, fallback %s", cache_dir, tostring(cache_fallback))
+		end
+
+		return active, other
 	end
 
 	local function check_setup(quiet, once)
@@ -250,7 +272,7 @@ return function(context)
 
 		mod:info("check: Polychromatic %s, sub state %s, gameplay gate %s, file access %s", tostring(mod.version), tostring(sub_state), tostring(flags.gameplay_running), tostring(lua ~= nil and lua.ffi ~= nil and lua.io ~= nil))
 
-		module_report()
+		local host_active, host_other = module_report()
 
 		if not instance then
 			mod:info("check: asset redirect library not present")
@@ -268,11 +290,15 @@ return function(context)
 			end
 		end
 
-		local stats = native_stats(instance)
+		local stats, stats_error = native_stats()
 		local by_stock = stats_by_stock(stats)
 
 		if stats then
 			mod:info("check: dll hooks installed %s, schema %s, dll entries %d", tostring(stats.installed), tostring(stats.schema), type(stats.entries) == "table" and #stats.entries or -1)
+
+			if stats.truncated == true then
+				mod:info("check: dll stats truncated, %s of %s entries returned", tostring(stats.entries_returned), tostring(stats.entries_total))
+			end
 
 			if type(stats.counters) == "table" then
 				for name, value in pairs(stats.counters) do
@@ -291,7 +317,7 @@ return function(context)
 				end
 			end
 		else
-			mod:info("check: dll stats unavailable")
+			mod:info("check: dll stats unavailable: %s", tostring(stats_error))
 		end
 
 		local counts = {}
@@ -385,12 +411,13 @@ return function(context)
 			return
 		end
 
-		mod:echo("Polychromatic %s: %d modules, redirect library %s, redirects %d of %d served, %d effects seen. Details are in the console log.", tostring(mod.version), context.registry and #context.registry.modules or 0, native_ok and "loaded" or "NOT loaded", served, total, #effects)
+		mod:echo("%s", mod:localize("poly_check_summary", tostring(mod.version), context.registry and #context.registry.modules or 0, host_active, host_other, mod:localize(native_ok and "poly_check_library_loaded" or "poly_check_library_missing"), served, total, #effects))
 
 		if not native_ok then
-			mod:echo("The asset-redirect.dll in Polychromatic/bin did not load (%s), so only las beams can be recoloured. Check it exists and was not quarantined by antivirus.", tostring(instance and instance.native_error))
+			mod:info("check: asset redirect library error: %s (tried %s)", tostring(instance and instance.native_error), tostring(instance and instance.native_path))
+			mod:echo("%s", mod:localize("poly_check_no_native"))
 		elseif served < total then
-			mod:echo("%d redirects were refused, most likely a game update changed the files they replace.", total - served)
+			mod:echo("%s", mod:localize("poly_check_refused", total - served))
 		end
 	end
 

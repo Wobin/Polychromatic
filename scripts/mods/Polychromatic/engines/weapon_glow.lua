@@ -60,6 +60,14 @@ return function(mod, core, data_list)
 	local _written = setmetatable({}, { __mode = "k" })
 	local _fin_attached = setmetatable({}, { __mode = "k" })
 	local _fin_ready = {}
+	local _fin_names = setmetatable({}, { __mode = "k" })
+	local _fin_miss_generation = setmetatable({}, { __mode = "k" })
+	local _fin_miss_category = setmetatable({}, { __mode = "k" })
+	local _hue_attached = setmetatable({}, { __mode = "k" })
+	local _hue_applied = setmetatable({}, { __mode = "k" })
+	local _hue_miss_generation = setmetatable({}, { __mode = "k" })
+	local _hue_ready = {}
+	local HUES = 12
 	local _stock_names = {}
 	local _units_scratch = {}
 	local _rainbow_t = 0
@@ -195,30 +203,48 @@ return function(mod, core, data_list)
 		return units
 	end
 
+	local function fin_names(entries, root, category)
+		local names = _fin_names[entries]
+
+		if not names then
+			names = {}
+			_fin_names[entries] = names
+		end
+
+		local list = names[category]
+
+		if not list then
+			list = {}
+
+			for k = 1, #entries do
+				list[k] = root .. entries[k].material .. "_" .. category
+			end
+
+			names[category] = list
+		end
+
+		return list
+	end
+
 	local function swap_fins(units, weapon, owner)
 		local category = owner == "mine" and "mine" or "team"
+		local generation = core.package_generation()
 
 		for i = 1, #units do
 			local unit = units[i]
 
-			if unit and Unit_alive(unit) and _fin_owner[unit] ~= category then
+			if unit and _fin_owner[unit] ~= category and not (_fin_miss_generation[unit] == generation and _fin_miss_category[unit] == category) and Unit_alive(unit) then
 				local id = string_match(tostring(Unit_debug_name(unit)), "%[(%x+)%]")
 				local entries = id and weapon.fins[id]
 				local done = true
 
 				if entries then
-					local generation = core.package_generation()
+					local names = fin_names(entries, weapon.fin_root, category)
 
 					for k = 1, #entries do
-						local name = weapon.fin_root .. entries[k].material .. "_" .. category
-						local ready = _fin_ready[name]
+						local name = names[k]
 
-						if ready ~= true and ready ~= generation then
-							ready = Application_can_get_resource("material", name) == true or generation
-							_fin_ready[name] = ready
-						end
-
-						if ready == true then
+						if core.resource_ready(_fin_ready, name, "material", name) then
 							_fin_attached[unit] = entries
 							Unit_set_material(unit, entries[k].slot, name)
 						else
@@ -229,6 +255,86 @@ return function(mod, core, data_list)
 
 				if done then
 					_fin_owner[unit] = category
+					_fin_miss_generation[unit] = nil
+				else
+					_fin_miss_generation[unit] = generation
+					_fin_miss_category[unit] = category
+				end
+			end
+		end
+	end
+
+	local function hue_index_for(profile, t)
+		local mode = profile and profile.show and profile.mode
+
+		if mode == "rainbow" then
+			local phase = t * core.RAINBOW_CYCLES_PER_SECOND
+
+			return math_floor((phase - math_floor(phase)) * HUES + 0.5) % HUES
+		elseif mode == "custom" then
+			return math_floor((profile.hue or 0) * HUES + 0.5) % HUES
+		end
+
+		return nil
+	end
+
+	local function restore_hues(unit, entries)
+		local restored = true
+
+		if Unit_alive(unit) then
+			for k = 1, #entries do
+				local name = stock_name(entries[k].material)
+
+				if not name or not pcall(Unit_set_material, unit, entries[k].slot, name) then
+					restored = false
+				end
+			end
+		end
+
+		if restored then
+			_hue_attached[unit] = nil
+		end
+
+		_hue_applied[unit] = nil
+
+		return restored
+	end
+
+	local function swap_hues(units, weapon, profile, t)
+		local index = hue_index_for(profile, t)
+		local generation = core.package_generation()
+
+		for i = 1, #units do
+			local unit = units[i]
+
+			if unit and Unit_alive(unit) then
+				local id = string_match(tostring(Unit_debug_name(unit)), "%[(%x+)%]")
+				local entries = id and weapon.hues[id]
+
+				if entries and index == nil then
+					if _hue_attached[unit] then
+						restore_hues(unit, entries)
+					end
+				elseif entries and _hue_applied[unit] ~= index and _hue_miss_generation[unit] ~= generation then
+					local done = true
+
+					for k = 1, #entries do
+						local name = string.format("%s%s_h%02d", weapon.hue_root, entries[k].material, index)
+
+						if core.resource_ready(_hue_ready, name, "material", name) then
+							_hue_attached[unit] = entries
+							Unit_set_material(unit, entries[k].slot, name)
+						else
+							done = false
+						end
+					end
+
+					if done then
+						_hue_applied[unit] = index
+						_hue_miss_generation[unit] = nil
+					else
+						_hue_miss_generation[unit] = generation
+					end
 				end
 			end
 		end
@@ -266,6 +372,10 @@ return function(mod, core, data_list)
 
 		if weapon.fins then
 			swap_fins(units, weapon, owner)
+		end
+
+		if weapon.hues then
+			swap_hues(units, weapon, profile, t)
 		end
 
 		for _, variable in ipairs(weapon.variables) do
@@ -353,8 +463,23 @@ return function(mod, core, data_list)
 						local scripts = extension:wieldable_slot_scripts_from_slot(slot_name)
 
 						for _, script in ipairs(scripts or {}) do
-							if script._stop_vfx_loop and script._looping_effect_id and script:_looping_effect_id() then
+							local loop = script._looping_effect_id
+
+							if type(loop) == "function" then
+								loop = script:_looping_effect_id()
+							end
+
+							if loop and script._stop_vfx_loop then
 								script:_stop_vfx_loop(true)
+
+								if script._stop_sfx_loop and script._looping_playing_id and script._is_active ~= nil then
+									script:_stop_sfx_loop()
+									script._is_active = false
+								end
+							end
+
+							if script._stop_emit_vfx_loop then
+								script:_stop_emit_vfx_loop(true)
 							end
 						end
 					end
@@ -416,15 +541,25 @@ return function(mod, core, data_list)
 		if next(_fin_attached) ~= nil then
 			mod:info("plasma fins: a stock fin material could not be resolved, package materials stay attached")
 		end
+
+		for unit, entries in pairs(_hue_attached) do
+			restore_hues(unit, entries)
+		end
+
+		if next(_hue_attached) ~= nil then
+			mod:info("weapon hue materials: a stock material could not be resolved, package materials stay attached")
+		end
 	end
 
 	function glow.in_use()
-		for unit in pairs(_fin_attached) do
-			if Unit_alive(unit) then
-				return true
-			end
+		for _, list in ipairs({ _fin_attached, _hue_attached }) do
+			for unit in pairs(list) do
+				if Unit_alive(unit) then
+					return true
+				end
 
-			_fin_attached[unit] = nil
+				list[unit] = nil
+			end
 		end
 
 		return false
@@ -492,6 +627,10 @@ return function(mod, core, data_list)
 
 					if weapon and weapon.fins then
 						swap_fins(slot_units(slot, weapon), weapon, owner)
+					end
+
+					if weapon and weapon.hues then
+						swap_hues(slot_units(slot, weapon), weapon, profile, core.gameplay_time())
 					end
 
 					if profile and profile.mode == "rainbow" then

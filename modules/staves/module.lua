@@ -1,8 +1,9 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "staves",
 	label = "Staves",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{
 			id = "staff", categories = { "mine", "team" }, label = "Staff: Inferno", description = "Psyker Inferno staff streams and their wall impacts.",

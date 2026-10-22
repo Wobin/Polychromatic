@@ -4,7 +4,8 @@ return function(mod, core, data_list)
 		{ setting = "terrain_tesselation_max_distance", stock = "50" },
 		{ setting = "terrain_displacement_min_distance", stock = "30" },
 		{ setting = "terrain_displacement_max_distance", stock = "40" },
-		{ setting = "occlusion_debug_far", stock = "300", requires_install = true },
+		{ setting = "hdr_paper_white_nits", stock = "400" },
+		{ setting = "rt_shadow_ray_multiplier", stock = "2" },
 	}
 	local SLOTS_PER_SETTING = 3
 	local SLOTS = mod:io_dofile("Polychromatic/channels")
@@ -18,7 +19,7 @@ return function(mod, core, data_list)
 
 	for i = 1, #SETTINGS do
 		local entry = SETTINGS[i]
-		local channel = { setting = entry.setting, stock = entry.stock, requires_install = entry.requires_install, slots = {} }
+		local channel = { setting = entry.setting, stock = entry.stock, slots = {} }
 
 		CHANNELS[i] = channel
 		by_setting[entry.setting] = channel
@@ -48,16 +49,6 @@ return function(mod, core, data_list)
 	local _attached = nil
 	local _written = {}
 	local channels = {}
-
-	local function is_live(channel)
-		if not channel.requires_install then
-			return true
-		end
-
-		local live = core.live_settings and core.live_settings()
-
-		return live ~= nil and live[channel.setting] == true
-	end
 
 	local function slot_code(slot, t)
 		if not slot then
@@ -116,14 +107,11 @@ return function(mod, core, data_list)
 
 		for i = 1, #CHANNELS do
 			local channel = CHANNELS[i]
+			local value = value_for(channel, t)
 
-			if is_live(channel) then
-				local value = value_for(channel, t)
-
-				if force or _written[channel.setting] ~= value then
-					set_render_setting(channel.setting, value)
-					_written[channel.setting] = value
-				end
+			if next(channel.slots) ~= nil and (force or _written[channel.setting] ~= value) then
+				set_render_setting(channel.setting, value)
+				_written[channel.setting] = value
 			end
 		end
 	end
@@ -163,11 +151,11 @@ return function(mod, core, data_list)
 		channels.write(false)
 	end
 
-	function channels.restore()
+	function channels.restore(force)
 		for i = 1, #CHANNELS do
 			local channel = CHANNELS[i]
 
-			if not channel.requires_install or _written[channel.setting] ~= nil then
+			if force or next(channel.slots) ~= nil or _written[channel.setting] ~= nil then
 				set_render_setting(channel.setting, channel.stock)
 			end
 
@@ -190,7 +178,7 @@ return function(mod, core, data_list)
 				end
 			end
 
-			lines[i] = string.format("%s: %s (%s)", channel.setting, is_live(channel) and "live" or "not live", table.concat(names, ", "))
+			lines[i] = string.format("%s: live (%s)", channel.setting, table.concat(names, ", "))
 		end
 
 		return lines

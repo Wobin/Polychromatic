@@ -1,8 +1,9 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "psyker",
 	label = "Psyker",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{ id = "assail", categories = { "mine", "team" }, label = "Assail", description = "Psyker Assail: the knife trail, the critical trail, the hit flash on the target, the aim marker and the shards hovering at the hand while Assail is held. The trails take the nearest of 12 hues at full saturation and brightness; the hit flash, the aim marker and the shards follow colour, saturation and brightness live. Shared hit effects on armour and walls and blood stay stock.", no_hidden = true },
 		{ id = "brain_burst", categories = { "mine", "team" }, label = "Brain Burst", description = "Psyker Brain Burst: the hand charge-up, the build-up, the target marker and the burst on the target. Colour, saturation and brightness change live.", no_hidden = true },

@@ -1,11 +1,13 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "skitarii",
 	label = "Skitarii",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{ id = "arc_maul", categories = { "mine", "team" }, label = "Arc maul", description = "Skitarii arc maul: the idle arcs on the head, the special's lightning and the coil glow. Colour, saturation and brightness change live.", no_hidden = true },
 		{ id = "arc", categories = { "mine", "team" }, label = "Arc rifle", description = "Skitarii arc rifle beam lightning, arc chains and their strikes, the impact and its light, plus the arc rifle's glow. Colour, saturation and brightness change live.", no_hidden = true },
+		{ id = "power_sword", categories = { "mine", "team" }, label = "Power sword", description = "Skitarii power sword: the blade's power field and its crackles, the node glow, the activation sparks, the arcs while the special is active, the energy node sparks and the hit sparks, in the nearest of 12 hues. The broad arcs thrown while the special is active stay stock.", no_hidden = true },
 		{
 			id = "skull", categories = { "mine", "team" }, label = "Servo-Skull flame", description = "The Skitarii companion servo-skull flamer.",
 			widgets = {
@@ -14,9 +16,10 @@ return {
 		},
 		{ id = "skull_las", categories = { "mine", "team" }, label = "Servo-Skull las", description = "The Skitarii companion servo-skull's las shots: muzzle flash, beam, linger, impacts and scope glint." },
 	},
-	packages = { "skitarii_burn", "skitarii_flame", "skitarii_las", "skitarii_lightning" },
-	engines = { "live_tint", "colour_channels", "burn", "weapon_glow", "bolt_palettes", "scene_lights" },
+	packages = { "skitarii_burn", "skitarii_flame", "skitarii_las", "skitarii_lightning", "skitarii_sword" },
+	engines = { "live_tint", "colour_channels", "burn", "weapon_glow", "bolt_palettes", "scene_lights", "weapon_routing" },
 	data = {
+		weapon_routing = "weapon_routing",
 		redirects = "redirects",
 		las_redirects = "las_redirects",
 		burn_redirects = "burn_redirects",

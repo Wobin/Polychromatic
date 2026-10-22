@@ -108,6 +108,10 @@ return function(mod, core, data_list)
 		local entry = table.remove(_pool)
 
 		while entry and not (Unit_alive(entry.unit) and entry.world == world) do
+			if Unit_alive(entry.unit) then
+				World.destroy_unit(entry.world, entry.unit)
+			end
+
 			entry = table.remove(_pool)
 		end
 

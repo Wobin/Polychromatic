@@ -1,6 +1,7 @@
 return function(mod, core, data_list)
 	local murmur_preimage = core.murmur_preimage
 	local HUES = 12
+	local SMOKE_TEMPLATE = "scripts/extension_systems/unit_templates/smoke_fog_unit_template"
 	local THRESHOLD_SETTINGS = { mine = "shield_mine_damage_threshold", team = "shield_team_damage_threshold" }
 	local UNITS = {}
 	local SMOKE_UNITS = {}
@@ -248,18 +249,16 @@ return function(mod, core, data_list)
 		guarded(hues.update, nil, self, unit, self.owner_unit, self._health_extension)
 	end)
 
-	local smoke_template = require("scripts/extension_systems/unit_templates/smoke_fog_unit_template")
-
-	mod:hook(smoke_template, "local_unit", function(func, unit_name, position, rotation, material, husk_unit_name, placed_on_unit, owner_unit, ...)
+	local function local_smoke_unit(func, unit_name, position, rotation, material, husk_unit_name, placed_on_unit, owner_unit, ...)
 		local name, spawn_position, spawn_rotation = func(unit_name, position, rotation, material, husk_unit_name, placed_on_unit, owner_unit, ...)
 		local spawn_name = guarded(hues.smoke_unit, name, name, owner_unit)
 
 		_smoke_pending = spawn_name ~= name
 
 		return spawn_name, spawn_position, spawn_rotation
-	end)
+	end
 
-	mod:hook(smoke_template, "husk_unit", function(func, session, object_id)
+	local function husk_smoke_unit(func, session, object_id)
 		local name, spawn_position, spawn_rotation = func(session, object_id)
 		local owner_id = GameSession.game_object_field(session, object_id, "owner_unit_id")
 		local spawner = Managers.state.unit_spawner
@@ -269,7 +268,7 @@ return function(mod, core, data_list)
 		_smoke_pending = spawn_name ~= name
 
 		return spawn_name, spawn_position, spawn_rotation
-	end)
+	end
 
 	local function remember_smoke(unit)
 		if _smoke_pending and unit then
@@ -279,8 +278,14 @@ return function(mod, core, data_list)
 		_smoke_pending = false
 	end
 
-	mod:hook_safe(smoke_template, "local_init", remember_smoke)
-	mod:hook_safe(smoke_template, "husk_init", remember_smoke)
+	core.after_boot("unit_hues", function()
+		local smoke_template = require(SMOKE_TEMPLATE)
+
+		mod:hook(smoke_template, "local_unit", local_smoke_unit)
+		mod:hook(smoke_template, "husk_unit", husk_smoke_unit)
+		mod:hook_safe(smoke_template, "local_init", remember_smoke)
+		mod:hook_safe(smoke_template, "husk_init", remember_smoke)
+	end)
 
 	hues.refresh()
 

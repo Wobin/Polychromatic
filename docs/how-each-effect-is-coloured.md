@@ -2,7 +2,7 @@
 
 Polychromatic recolours effects with a small set of techniques. This document describes each technique, then lists
 every source by module with the techniques it uses, then the parts that stay stock. The base mod holds the shared
-machinery (owner detection, settings, the loader and the package installer); each module supplies the effect copies,
+machinery (owner detection, settings, the loader and the host packages); each module supplies the effect copies,
 patched files and data for its own sources, and the engines behind a technique run only when an installed module uses
 them.
 
@@ -11,7 +11,7 @@ them.
 ### Effect copies
 
 The game's effects cannot be edited where they live, so the mod ships its own copies. Each copy is a full particle
-effect plus the materials, parent materials and textures it needs, registered as a game package that loads at boot. Every package belongs to one module, and carries all it needs.
+effect plus the materials, parent materials and textures it needs, composed into a host package that the mod's DLL serves while the game runs and the mod loads as a game package while a level runs. Every package belongs to one module, and carries all it needs.
 A copy draws exactly like the stock effect until one of the techniques below changes its colour. When the game is
 about to spawn a stock effect that has copies, the mod substitutes the right copy by name at that moment. Where the
 game sends an effect's name to other players, the stock name is sent and the copy is substituted only when the
@@ -46,15 +46,21 @@ A few effects are shared by more than one source and are routed at spawn:
   and Smite, and Brain Burst and Assail draw the same aim marker. It takes the colour of the blitz the caster is
   holding; with any other weapon in hand it stays stock.
 
+- **Power sword energy node sparks and hit sparks**: the same effects spawn from every one-handed power sword. They
+  take the Power sword colour only while the owner's primary weapon is the Skitarii power sword, and stay stock for
+  any other sword.
+
 The staff route lives in the base (`engines/staff_routing.lua`): its staff template names, effect paths and the
 Trauma default are fixed there, and a module enables it by declaring the `staff_routing` engine. The blitz route reads
-its weapon to source table from the Psyker module's `data/blitz_routing.lua`.
+its weapon to source table from the Psyker module's `data/blitz_routing.lua`. The weapon route (`engines/weapon_routing.lua`)
+reads each routed effect, the slot to inspect and its weapon template to source table from a module's
+`data/weapon_routing.lua`; the Skitarii module routes the power sword's shared effects with it.
 
 ### Showing and hiding
 
 Each owner setting has a "Show" toggle and a colour mode. Unticking Show leaves that source exactly as the game draws
 it. The **Hidden** mode stops the effect at spawn instead of recolouring it; for las weapons that hides the whole shot.
-Arc maul, Arc rifle, Assail, Brain Burst, Grenade: Fire, Smite and Staff: Surge offer no Hidden mode: their colour comes
+Arc maul, Arc rifle, Assail, Brain Burst, Grenade: Fire, Power sword, Smite and Staff: Surge offer no Hidden mode: their colour comes
 from colour channels, mesh copies or hue copies, so their copy has to spawn. Grenade: Smoke and Telekine Shield offer none either: the
 smoke cloud and the shield are units, not effects that can be stopped.
 
@@ -91,10 +97,10 @@ no patched shader:
 Mesh effects (lightning bolts, ribbons, arcs) ignore runtime material writes, so their copies read the colour from
 the renderer instead.
 
-- The constant buffer every shader reads carries a number of render settings. Polychromatic owns nine of them as
-  **colour channels**: four terrain tessellation and displacement distances, which Darktide does not use, and five
-  debug overlay settings that the mod adds to the game's render settings at install (`occlusion_debug_far`,
-  `occlusion_debug_near`, `occlusion_debug_opacity`, `occluder_debug_far`, `occluder_debug_opacity`).
+- The constant buffer every shader reads carries a number of render settings. Polychromatic owns six of them as
+  **colour channels**, all live settings of the game's own render configuration: four terrain tessellation and
+  displacement distances, which Darktide does not use, plus `hdr_paper_white_nits` and `rt_shadow_ray_multiplier`,
+  which nothing in release reads.
 - Each channel carries **three colour slots**, one per source and owner, packed into one float: 32 hues, 4
   saturation steps and 4 brightness steps per slot. A slot set to Base decodes as stock; a channel with every slot on
   Base holds the game's own value.
@@ -103,8 +109,6 @@ the renderer instead.
   smoothly. Every copy on one slot shares that slot's colour at any moment.
 - Mesh particles alive together are drawn as one batch keyed by mesh and name, so each copy carries its own mesh
   tag; without distinct tags the first copy alive would set the colour for all of them.
-- A channel on an added setting is written only when the added settings were loaded at this boot; otherwise its
-  slots stay stock.
 
 The slot table lives in the base (`channels.lua`) and is shared by all modules, so a module's slots never collide
 with another's.
@@ -115,9 +119,9 @@ with another's.
 | `terrain_tesselation_max_distance` | Arc rifle (team), Arc maul (mine), Arc maul (team) |
 | `terrain_displacement_min_distance` | Explosive barrels, Grenade: Fire (mine), Grenade: Fire (team) |
 | `terrain_displacement_max_distance` | Plasma gun (mine), Plasma gun (team), Smite (mine) |
-| `occlusion_debug_far` | Smite (team), Brain Burst (mine), Brain Burst (team) |
+| `hdr_paper_white_nits` | Smite (team), Brain Burst (mine), Brain Burst (team) |
 
-The other four added settings are free channels.
+`rt_shadow_ray_multiplier` carries no slot, so the mod never writes it.
 
 ### 4. Hue copies
 
@@ -167,8 +171,9 @@ into it; zero means stock. Every breed except the daemonhost is covered.
 ### 8. Unit material swap
 
 A unit's material slot is swapped for one of twelve baked-hue copies of its material, following the owner's hue. The
-copies keep the stock material's inputs, so the game's own per-frame values (such as a shield's fade) still apply.
-Saturation and brightness are fixed at full in the copies.
+copies keep the stock material's inputs, so the game's own per-frame values (such as a shield's fade, or a power
+sword's charge) still apply. Saturation and brightness are fixed at full in the copies. On a held weapon the swap is
+part of the weapon surface glow pass, keyed by the attachment unit and its material slot.
 
 ## Sources by module
 
@@ -312,6 +317,18 @@ Each module lists its sources by name. A source is present only while its module
 - The beam and impact lights: **replacement lights**.
 - The rifle's glow: **weapon surface glow** (emissive vector).
 
+#### Power sword (mine, team)
+
+- The activation sparks, the thin arcs and the glow while the special is active, the energy node sparks and the hit
+  sparks: **hue copies** (baked materials). The arcs carry the hue in their material's colour vectors; the sprite layers
+  draw children of live-patched roots with the hue baked in. Saturation and brightness are fixed in the copies.
+- The hit light: **hue copies** (colour keys).
+- The blade's power field, its crackles and the node glow: **unit material swap** of the blade material on the held
+  weapon, plus **weapon surface glow** (`glow_color`) for the glow's live saturation and brightness. The swap follows
+  Rainbow by stepping through the copies.
+- The energy node sparks and the hit sparks are routed by the owner's primary weapon (see Routing between sources).
+- The broad arcs thrown while the special is active stay stock.
+
 #### Servo-Skull flame (mine, team)
 
 - The companion's flamer stream: **live tint**.
@@ -348,6 +365,7 @@ Each module lists its sources by name. A source is present only while its module
 | Phosphor shot trail and burn | left as the game draws them |
 | Explosive barrel smoke, sparks and one outer flame layer | their materials expose no colour input |
 | Surge hand sparks | coloured by a shared texture |
+| Power sword broad special arcs | their material bakes its hue in the shader |
 | Brain Burst hand charge-up mesh | draws its own unit's material, which has no copy |
 | Assail hits on armour and walls | shared with autoguns |
 | Plasma heat gauge | kept stock on purpose |
@@ -359,8 +377,7 @@ Each module lists its sources by name. A source is present only while its module
 
 ## Delivery and safety
 
-- Packages and the added render settings are installed from the base plus every installed module, and load from the next game start. Adding or removing a module reinstalls them at the next start; with no module installed, the packages are removed. The one game file
-  they change is backed up and restored on removal.
+- Each installed module has one host: a stock debug package the game lists in `packages/boot_assets`, carries nowhere else and never names in its Lua. The DLL composes the module's package folders onto the host's records, writes the result under `%LOCALAPPDATA%\asset-redirect\hosts\`, and serves it in place of the stock host while the game runs. The mod loads it as a game package while a level runs and releases it only when no world exists. Nothing is written to the game folder. Adding, removing or replacing a module takes effect after a mods reload; a replaced module refreshes at the next mission or hub load.
 - Patched stock files (the parent shaders behind live tint and the character materials behind burn body glow) are
   served in place of the stock file only while the stock file matches the version the patch was made from; a changed
   stock file falls back to stock rather than serving a stale patch.

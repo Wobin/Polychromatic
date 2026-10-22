@@ -1,8 +1,9 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "guns",
 	label = "Guns",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{
 			id = "flamer", categories = { "mine", "team" }, label = "Flamer", description = "Zealot flamer streams and wall impacts.",

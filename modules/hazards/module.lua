@@ -1,8 +1,9 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "hazards",
 	label = "Hazards",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{ id = "sniper", categories = { "enemy" }, label = "Enemy sniper laser", description = "The Scab Sniper targeting laser and its shot. Stock red is easy to lose against warm backgrounds.", no_rainbow = true },
 		{ id = "barrel", categories = { "enemy" }, show_label = "Show barrel fire", label = "Explosive barrels", description = "The fire of exploding red barrels in missions. The brightest flame layers recolour; the smoke, sparks and one outer flame layer stay stock." },

@@ -2,3 +2,4 @@
 *.zip
 .vscode/
 install_stage/
+.superpowers/

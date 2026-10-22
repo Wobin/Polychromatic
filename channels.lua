@@ -11,7 +11,7 @@ return {
 	{ name = "plasma_mine", setting = "terrain_displacement_max_distance", slot = 1 },
 	{ name = "plasma_team", setting = "terrain_displacement_max_distance", slot = 2 },
 	{ name = "smite_mine", setting = "terrain_displacement_max_distance", slot = 3 },
-	{ name = "smite_team", setting = "occlusion_debug_far", slot = 1 },
-	{ name = "brain_burst_mine", setting = "occlusion_debug_far", slot = 2 },
-	{ name = "brain_burst_team", setting = "occlusion_debug_far", slot = 3 },
+	{ name = "smite_team", setting = "hdr_paper_white_nits", slot = 1 },
+	{ name = "brain_burst_mine", setting = "hdr_paper_white_nits", slot = 2 },
+	{ name = "brain_burst_team", setting = "hdr_paper_white_nits", slot = 3 },
 }

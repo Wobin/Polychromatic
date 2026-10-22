@@ -1,5 +1,6 @@
 local CDEF_TYPE = "AssetRedirect_MODULES_CDEF"
-local DLL_NAME = "asset-redirect.dll"
+local LIST_MODULES = "AssetRedirect_ListModules"
+local BASE_API = 2
 local OUT_CAP = 65536
 local REGISTRY_KEY = "__polychromatic_registry"
 local INVALID_ATTRIBUTES = 4294967295
@@ -23,6 +24,8 @@ local _logged = false
 local function folder(mod)
 	return mod:get_internal_data("load_order_name") or mod:get_name()
 end
+
+module_list.folder = folder
 
 local function log_once(mod, why)
 	if not _logged then
@@ -49,16 +52,24 @@ local function native(mod)
 		]])
 	end
 
-	local ok, lib = pcall(ffi.load, "../mods/" .. folder(mod) .. "/bin/" .. DLL_NAME)
+	local loaded, library = pcall(mod.io_dofile, mod, "Polychromatic/scripts/mods/Polychromatic/asset_redirect")
 
-	if not ok then
-		_lib_error = tostring(lib)
+	if not loaded or type(library) ~= "table" or type(library.load_native) ~= "function" then
+		_lib_error = "the asset redirect library did not load"
 
 		return nil, _lib_error
 	end
 
-	if not pcall(function() return lib.AssetRedirect_ListModules end) then
-		_lib_error = "Polychromatic's asset redirect DLL predates the module list"
+	local lib = library.load_native(mod)
+
+	if not lib then
+		_lib_error = "the asset redirect library has no native DLL"
+
+		return nil, _lib_error
+	end
+
+	if not library.has(LIST_MODULES) then
+		_lib_error = "the loaded asset redirect DLL predates the module list"
 
 		return nil, _lib_error
 	end
@@ -78,18 +89,18 @@ function module_list.list(mod)
 	end
 
 	local out = ffi.new("char[?]", OUT_CAP)
-	local ok, written = pcall(lib.AssetRedirect_ListModules, "mods/" .. folder(mod) .. "/modules", out, OUT_CAP)
+	local ok, written = pcall(lib[LIST_MODULES], "mods/" .. folder(mod) .. "/modules", out, OUT_CAP)
 
-	if not ok or written < 0 then
-		log_once(mod, ok and "AssetRedirect_ListModules failed" or written)
+	if not ok then
+		log_once(mod, written)
 
 		return {}
 	end
 
 	local decoded_ok, decoded = pcall(cjson.decode, ffi.string(out))
 
-	if not decoded_ok or type(decoded) ~= "table" or not decoded.ok or type(decoded.modules) ~= "table" then
-		log_once(mod, decoded_ok and "unexpected module list reply" or decoded)
+	if written ~= 1 or not decoded_ok or type(decoded) ~= "table" or not decoded.ok or type(decoded.modules) ~= "table" then
+		log_once(mod, decoded_ok and type(decoded) == "table" and decoded.error or (LIST_MODULES .. " returned an unexpected reply"))
 
 		return {}
 	end
@@ -125,9 +136,10 @@ function module_list.registry(mod, rebuild)
 	end
 
 	local build = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/module_registry")
-	local base_version = mod.get_metadata and mod:get_metadata("version") or "2.0.0"
+	local base_version = mod.get_metadata and mod:get_metadata("version") or nil
 	local registry = build({
-		api = 1,
+		api = BASE_API,
+		min_api = BASE_API,
 		base_version = base_version,
 		list = function()
 			return module_list.list(mod)

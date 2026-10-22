@@ -12,6 +12,7 @@ local math_floor = math.floor
 local math_max = math.max
 local World = World
 local World_are_particles_playing = World.are_particles_playing
+local World_destroy_particles = World.destroy_particles
 local World_has_particles_material = World.has_particles_material
 local World_set_particles_material_scalar = World.set_particles_material_scalar
 local World_set_particles_material_vector3 = World.set_particles_material_vector3
@@ -40,8 +41,9 @@ return function(mod, core, data_list)
 	local MIN_BRIGHTNESS_STEP = core.MIN_BRIGHTNESS_STEP
 	local MAX_BRIGHTNESS_STEP = core.MAX_BRIGHTNESS_STEP
 	local SATURATION_STEPS = core.SATURATION_STEPS
-	local SKULL_FLAMER_RANGE = require("scripts/settings/companion/companion_servo_skull_flamer_settings").vfx.max_range
-	local skull_flamer_template = require("scripts/settings/fx/effect_templates/companion_servo_skull_flamer")
+	local SKULL_FLAMER_SETTINGS = "scripts/settings/companion/companion_servo_skull_flamer_settings"
+	local SKULL_FLAMER_TEMPLATE = "scripts/settings/fx/effect_templates/companion_servo_skull_flamer"
+	local SKULL_FLAMER_RANGE = nil
 
 	local VARIABLE = "lighting_far_range"
 	local STOCK_VALUE = 1000
@@ -844,7 +846,7 @@ return function(mod, core, data_list)
 		ENGINE.scene_lights.stream(template_data, template_context.world, from_pos, to_pos or from_pos + Quaternion.forward(Unit.world_rotation(template_data.unit, 1)) * SKULL_FLAMER_RANGE, "skull", owner)
 	end
 
-	mod:hook_safe(skull_flamer_template, "update", function(template_data, template_context, dt, t)
+	local function skull_update(template_data, template_context, dt, t)
 		local stream_effect_id = template_data.stream_effect_id
 
 		if not stream_effect_id then
@@ -881,7 +883,33 @@ return function(mod, core, data_list)
 		end
 
 		tint(template_context.world, stream_effect_id, encoded_value(profile, t))
+	end
+
+	core.after_boot("live_tint", function()
+		SKULL_FLAMER_RANGE = require(SKULL_FLAMER_SETTINGS).vfx.max_range
+		mod:hook_safe(require(SKULL_FLAMER_TEMPLATE), "update", skull_update)
 	end)
+
+	local function drop_package_particles()
+		local world_manager = Managers.world
+		local live_manager = world_manager and not rawget(world_manager, "__deleted") and world_manager or nil
+		local dropped = 0
+
+		for world, tracked in pairs(_package_particles) do
+			if live_manager and tracked.world_name and live_manager:world(tracked.world_name) == world then
+				for particle_id in pairs(tracked.ids) do
+					if World_are_particles_playing(world, particle_id) then
+						World_destroy_particles(world, particle_id)
+						dropped = dropped + 1
+					end
+				end
+			end
+
+			_package_particles[world] = nil
+		end
+
+		return dropped
+	end
 
 	return {
 		update = function()
@@ -894,5 +922,6 @@ return function(mod, core, data_list)
 			forget_dead_worlds(Managers.world)
 		end,
 		in_use = package_particles_in_use,
+		drop_package_particles = drop_package_particles,
 	}
 end

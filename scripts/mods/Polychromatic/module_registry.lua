@@ -129,8 +129,8 @@ local function build(opts)
 	local result = { modules = {}, skipped = {}, sources = {}, engines = {}, packages = {}, merge_redirects = merge_redirects }
 	local source_ids, package_names = {}, {}
 
-	local function skip(id, reason)
-		result.skipped[#result.skipped + 1] = { id = id, reason = reason }
+	local function skip(id, reason, kind)
+		result.skipped[#result.skipped + 1] = { id = id, reason = reason, kind = kind }
 		opts.log("module %s not loaded: %s", tostring(id), reason)
 	end
 
@@ -184,6 +184,10 @@ local function build(opts)
 		return nil
 	end
 
+	if opts.base_version == nil and opts.log then
+		opts.log("base version unknown: module min_base checks are skipped")
+	end
+
 	local ids = opts.list() or {}
 
 	table.sort(ids)
@@ -200,8 +204,10 @@ local function build(opts)
 		elseif manifest.id ~= id then
 			skip(id, string.format("manifest id %s does not match folder %s", manifest.id, tostring(id)))
 		elseif type(manifest.api) ~= "number" or manifest.api > opts.api then
-			skip(id, string.format("needs manifest api %s, this base supports %d", tostring(manifest.api), opts.api))
-		elseif manifest.min_base and version_less(opts.base_version, manifest.min_base) then
+			skip(id, string.format("needs manifest api %s, this base supports %d", tostring(manifest.api), opts.api), "api_new")
+		elseif manifest.api < (opts.min_api or 1) then
+			skip(id, string.format("made for manifest api %s, this base needs %d", tostring(manifest.api), opts.min_api or 1), "api_old")
+		elseif manifest.min_base and opts.base_version ~= nil and version_less(opts.base_version, manifest.min_base) then
 			skip(id, string.format("needs base %s, this base is %s", manifest.min_base, tostring(opts.base_version)))
 		else
 			local problem = malformed(manifest) or find_clash(manifest) or missing_packages(id, manifest)

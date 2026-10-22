@@ -14,7 +14,9 @@ local math_floor = math.floor
 local math_max = math.max
 local math_min = math.min
 local get_mod = get_mod
-local REGISTRY = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/module_list").registry(mod)
+local MODULE_LIST = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/module_list")
+local REGISTRY = MODULE_LIST.registry(mod)
+local MOD_FOLDER = MODULE_LIST.folder(mod)
 
 file_timer.lap("registry")
 startup_detail.mark()
@@ -84,7 +86,7 @@ local function data_module(kind)
 end
 
 local PAYLOAD_STAT = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/file_stat").stat
-local MODULES_ROOT = "../mods/" .. (mod:get_internal_data("load_order_name") or mod:get_name()) .. "/modules/"
+local MODULES_ROOT = "../mods/" .. MOD_FOLDER .. "/modules/"
 
 local function payload_identity(entry, module_id)
 	if not PAYLOAD_STAT or type(module_id) ~= "string" then
@@ -164,7 +166,8 @@ local GLOW_SLOTS = baked.glow_slots
 file_timer.lap("bake")
 startup_detail.mark()
 
-local asset_redirect = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/asset_redirect")
+local REDIRECT_LIBRARY = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/asset_redirect") or nil
+local asset_redirect = REDIRECT_LIBRARY
 
 local function probe_material_format(format)
 	local lua = rawget(_G, "Mods") and Mods.lua
@@ -457,6 +460,16 @@ local function resolve_set(set_id, effect_name)
 		return ENGINE.blitz_routing and ENGINE.blitz_routing.resolve(STATE.staff_unit) or nil
 	end
 
+	local weapon_routing = ENGINE.weapon_routing
+
+	if weapon_routing then
+		local routed, handled = weapon_routing.resolve(set_id, effect_name, STATE.staff_unit)
+
+		if handled then
+			return routed
+		end
+	end
+
 	if set_id ~= "force_staff" then
 		return set_id
 	end
@@ -472,24 +485,10 @@ end
 
 local EFFECT_PACKAGES = nil
 
+local RESOURCE_MODULE = {}
+
 local function resource_ready(cache, key, type_name, name)
-	local state = cache[key]
-
-	if state == true then
-		return true
-	end
-
-	local generation = EFFECT_PACKAGES.generation()
-
-	if state == generation then
-		return false
-	end
-
-	local ready = Application.can_get_resource(type_name, name) == true
-
-	cache[key] = ready or generation
-
-	return ready
+	return EFFECT_PACKAGES.resource_ready(cache, key, type_name, name, RESOURCE_MODULE[name])
 end
 
 startup_detail.mark()
@@ -500,6 +499,20 @@ local BURN_PALETTES = {}
 for _, palettes in pairs(BURN_PALETTE_SETS) do
 	for effect_name in pairs(palettes) do
 		BURN_PALETTES[effect_name] = true
+	end
+end
+
+for _, manifest in ipairs(REGISTRY.modules) do
+	for _, kind in ipairs({ "burn_palettes", "skull_burn_palettes", "glow_particle_palettes" }) do
+		local part = module_data_file(manifest, kind)
+
+		for _, list in pairs(type(part) == "table" and part or {}) do
+			local names = type(list) == "table" and (type(list.names) == "table" and list.names or list) or {}
+
+			for _, name in ipairs(names) do
+				RESOURCE_MODULE[name] = RESOURCE_MODULE[name] or manifest.id
+			end
+		end
 	end
 end
 
@@ -538,7 +551,123 @@ file_timer.mark()
 startup_detail.mark()
 
 mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/cleanup_guard")(mod)
-EFFECT_PACKAGES = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/effect_packages")(mod, module_data, REGISTRY.modules)
+local function engines_in_use()
+	for _, name in ipairs({ "live_tint", "weapon_glow", "unit_hues", "decal_swap" }) do
+		local engine = ENGINE[name]
+		local in_use = engine and engine.in_use
+
+		if in_use then
+			local ok, live = pcall(in_use)
+
+			if not ok or live then
+				return true
+			end
+		end
+	end
+
+	return false
+end
+
+local function drop_package_copies()
+	local live_tint = ENGINE.live_tint
+
+	if live_tint and live_tint.drop_package_particles then
+		local ok, err = pcall(live_tint.drop_package_particles)
+
+		if not ok then
+			mod:info("live_tint drop failed: %s", tostring(err))
+		end
+	end
+
+	for _, name in ipairs({ "weapon_glow", "unit_hues", "decal_swap" }) do
+		local engine = ENGINE[name]
+
+		if engine and engine.restore then
+			local ok, err = pcall(engine.restore)
+
+			if not ok then
+				mod:info("%s restore failed: %s", name, tostring(err))
+			end
+		end
+	end
+end
+
+local _after_boot = {}
+local _booted = false
+
+local function run_after_boot()
+	_booted = true
+
+	local queued = _after_boot
+
+	_after_boot = {}
+
+	for i = 1, #queued do
+		local ok, err = xpcall(queued[i].fn, with_traceback)
+
+		if not ok then
+			mod:info("engine %s setup after boot failed: %s", tostring(queued[i].name), tostring(err))
+		end
+	end
+end
+
+local function after_boot(name, fn)
+	_after_boot[#_after_boot + 1] = { name = name, fn = fn }
+
+	if _booted then
+		run_after_boot()
+	end
+end
+
+EFFECT_PACKAGES = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/effect_packages")(mod, module_data, (function()
+	local mods_lua = rawget(_G, "Mods") and Mods.lua
+
+	return {
+		modules = REGISTRY.modules,
+		asset_redirect = asset_redirect,
+		table = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/hosts"),
+		ffi = mods_lua and mods_lua.ffi,
+		json = rawget(_G, "cjson"),
+		native = function()
+			return REDIRECT_LIBRARY and REDIRECT_LIBRARY.native() or nil
+		end,
+		has = function(symbol)
+			return REDIRECT_LIBRARY ~= nil and REDIRECT_LIBRARY.has(symbol) == true
+		end,
+		redirect_stocks = function()
+			local set = {}
+
+			for i = 1, #REDIRECTS do
+				set[REDIRECTS[i].stock] = true
+			end
+
+			return set
+		end,
+		in_use = engines_in_use,
+		drop_copies = drop_package_copies,
+		folder = function()
+			return "mods/" .. MOD_FOLDER
+		end,
+		package_loaded = function(name)
+			local manager = Managers.package
+
+			return manager ~= nil and manager:has_loaded(name) == true
+		end,
+		opens = function(host)
+			local count = asset_redirect and asset_redirect.opens and asset_redirect.opens(host)
+
+			return type(count) == "number" and count or nil
+		end,
+		no_world = function()
+			local wm = Managers.world
+
+			return wm == nil or not wm:has_world("level_world")
+		end,
+		gameplay_running = function()
+			return STATE.gameplay_running == true
+		end,
+	}
+end)())
 startup_detail.lap("engines", "packages")
 
 local ENGINE_LIB = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/engines")
@@ -558,6 +687,7 @@ local _, ENGINE_DISABLED = ENGINE_LIB.load(mod, REGISTRY, {
 	redshift_owns_sniper = redshift_owns_sniper,
 	gameplay_time = gameplay_time,
 	with_traceback = with_traceback,
+	after_boot = after_boot,
 	resource_ready = resource_ready,
 	rgb_to_hsv = rgb_to_hsv,
 	hsv_to_rgb = hsv_to_rgb,
@@ -572,9 +702,6 @@ local _, ENGINE_DISABLED = ENGINE_LIB.load(mod, REGISTRY, {
 	burn_palettes = BURN_PALETTES,
 	burn_palette_sets = BURN_PALETTE_SETS,
 	murmur_preimage = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/murmur_preimage"),
-	live_settings = function()
-		return EFFECT_PACKAGES.render_settings()
-	end,
 	unit_slots = function(key)
 		return EFFECT_PACKAGES.slots(key)
 	end,
@@ -626,7 +753,6 @@ local _redirects_settled = false
 local _redirects_capped = false
 local _restart_told = false
 local _setup_after_settle = false
-local _packages_started = false
 local diagnostics = nil
 
 local function settle_redirects()
@@ -731,7 +857,7 @@ local function settle_redirects()
 		end
 	end
 
-	if first_settle and _packages_started then
+	if first_settle then
 		EFFECT_PACKAGES.acquire()
 	end
 
@@ -780,6 +906,10 @@ mod.on_game_state_changed = function(status, state_name)
 	local gameplay_init = state_name == "GameplayStateRun"
 		or string.sub(state_name or "", 1, 12) == "GameplayInit"
 
+	if status == "enter" and state_name == "StateGameplay" and not _booted then
+		run_after_boot()
+	end
+
 	if status == "enter" then
 		STATE.gameplay_running = state_name == "GameplayStateRun"
 	elseif state_name == "StateGameplay" or state_name == "GameplayStateRun" then
@@ -796,8 +926,14 @@ mod.on_game_state_changed = function(status, state_name)
 		end
 	end
 
-	if status == "exit" and state_name == "StateGameplay" and ENGINE.scene_lights then
-		ENGINE.scene_lights.clear()
+	if status == "exit" and state_name == "StateGameplay" then
+		EFFECT_PACKAGES.release_when_idle()
+
+		if ENGINE.scene_lights then
+			ENGINE.scene_lights.clear()
+		end
+	elseif status == "exit" and state_name == "StateGame" then
+		EFFECT_PACKAGES.release_now()
 	end
 
 	if status == "enter" and state_name == "GameplayStateRun" and ENGINE.colour_channels then
@@ -808,6 +944,7 @@ end
 
 mod.on_settings_reset = function()
 	cache_settings()
+	EFFECT_PACKAGES.set_enabled(mod:get("effect_packages_enabled") ~= false)
 end
 
 startup_detail.mark()
@@ -822,12 +959,14 @@ diagnostics = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/Polychroma
 	glow_slots = GLOW_SLOTS,
 	sets = SETS,
 	asset_redirect = asset_redirect,
+	redirect_library = REDIRECT_LIBRARY,
 	redirect_handles = _redirect_handles,
 	redirect_served = redirect_served,
 	profile_for = profile_for,
 	redshift_owns_sniper = redshift_owns_sniper,
 	effect_stats = _effect_stats,
 	registry = REGISTRY,
+	effect_packages = EFFECT_PACKAGES,
 	engines_loaded = ENGINE,
 	engines_disabled = ENGINE_DISABLED,
 	engine_known = ENGINE_LIB.known,
@@ -882,24 +1021,12 @@ mod:command("poly_check", mod:localize("poly_check_description"), function()
 	diagnostics.check_setup(false)
 end)
 
-local OPTIONS_LABELS = mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/options_labels")(mod, {
+mod:io_dofile("Polychromatic/scripts/mods/Polychromatic/options_labels")(mod, {
 	has_sniper = has_source("sniper"),
 	redshift_owns_sniper = redshift_owns_sniper,
-	package_label_key = function()
-		return EFFECT_PACKAGES.label_key()
-	end,
 })
 
-EFFECT_PACKAGES.set_relabel(OPTIONS_LABELS.sync_package_label)
 startup_detail.lap("other", "labels")
-
-mod.toggle_effect_packages = function()
-	EFFECT_PACKAGES.toggle(OPTIONS_LABELS.sync_package_label)
-
-	if EFFECT_PACKAGES.busy() then
-		OPTIONS_LABELS.sync_package_label()
-	end
-end
 
 mod.on_all_mods_loaded = function()
 	local load_timer = STARTUP.start()
@@ -910,6 +1037,10 @@ mod.on_all_mods_loaded = function()
 	local in_level = ui ~= nil and ui:get_current_sub_state_name() == "GameplayStateRun"
 
 	STATE.gameplay_running = in_level
+
+	if not _booted and ui ~= nil and ui:get_current_state_name() == "StateGameplay" then
+		run_after_boot()
+	end
 
 	if _material_format.missing then
 		mod:info("material format probe %s unreadable: every patched file stays stock", _material_format.probe)
@@ -941,22 +1072,10 @@ mod.on_all_mods_loaded = function()
 	load_timer.lap("engine attach")
 	load_timer.mark()
 
-	EFFECT_PACKAGES.startup(function()
-		_packages_started = true
+	EFFECT_PACKAGES.startup()
 
-		if _redirects_settled then
-			EFFECT_PACKAGES.acquire()
-		end
-
-		OPTIONS_LABELS.sync_package_label()
-	end)
-
-	if EFFECT_PACKAGES.busy() then
-		OPTIONS_LABELS.sync_package_label()
-	end
-
-	load_timer.lap("installer start")
-	mod:info("%s", load_timer.line("all mods loaded", { "redirect commit", "engine attach", "installer start" }))
+	load_timer.lap("host start")
+	mod:info("%s", load_timer.line("all mods loaded", { "redirect commit", "engine attach", "host start" }))
 
 	if _debug_logging and _redirects_settled and not _redirects_capped then
 		diagnostics.check_setup(true, true)
@@ -965,8 +1084,13 @@ mod.on_all_mods_loaded = function()
 	end
 end
 
-mod.on_unload = function()
-	local held = false
+mod.on_unload = function(exit_game)
+	local managers = rawget(_G, "Managers")
+	local package_manager = managers and managers.package
+
+	if exit_game and package_manager and not rawget(package_manager, "__deleted") then
+		EFFECT_PACKAGES.release_now()
+	end
 
 	for _, name in ipairs({ "weapon_glow", "unit_hues", "decal_swap" }) do
 		local engine = ENGINE[name]
@@ -975,26 +1099,9 @@ mod.on_unload = function()
 			local ok, err = pcall(engine.restore)
 
 			if not ok then
-				held = true
 				mod:info("%s restore failed: %s", name, tostring(err))
 			end
 		end
-	end
-
-	for _, name in ipairs({ "weapon_glow", "unit_hues", "decal_swap", "live_tint" }) do
-		local engine = ENGINE[name]
-
-		if engine and not held then
-			local ok, in_use = pcall(engine.in_use)
-
-			held = not ok or in_use == true
-		end
-	end
-
-	if held then
-		mod:info("%s", "effect packages kept loaded: package resources are still in use by live units or effects")
-	else
-		EFFECT_PACKAGES.release()
 	end
 
 	if ENGINE.colour_channels then
@@ -1026,6 +1133,10 @@ mod.on_setting_changed = function(setting_id)
 
 	if ENGINE.colour_channels then
 		ENGINE.colour_channels.write(true)
+	end
+
+	if setting_id == "effect_packages_enabled" then
+		EFFECT_PACKAGES.set_enabled(mod:get("effect_packages_enabled") ~= false)
 	end
 
 	if setting_id == "debug_logging" and _debug_logging and not was_logging then

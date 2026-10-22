@@ -1,8 +1,9 @@
 return {
-	api = 1,
+	api = 2,
+	min_base = "3.0.0",
 	id = "grenades",
 	label = "Grenades",
-	version = "1.0.0",
+	version = "1.1.0",
 	sources = {
 		{ id = "chem_grenade", categories = { "mine", "team" }, label = "Grenade: Chem", description = "Hive Scum chem grenade: the blast, the gas trail, the held grenade's wisps and the lingering pool with its edge. Layers with baked colours stay stock. Colour, saturation and brightness change live." },
 		{ id = "fire_grenade", categories = { "mine", "team" }, label = "Grenade: Fire", description = "The fire grenade blast, its light and the burning pool it leaves. Colour, saturation and brightness change live.", no_hidden = true },

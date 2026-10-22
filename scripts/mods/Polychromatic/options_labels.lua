@@ -1,10 +1,8 @@
 return function(mod, deps)
 	local SNIPER_GROUP_ID = "sniper_group"
-	local PACKAGES_SETTING = "effect_packages"
 	local OPTIONS_VIEW = "dmf_options_view"
 
 	local _sniper_group_title = mod:localize(SNIPER_GROUP_ID)
-	local labels = {}
 
 	local function strip_markup(text)
 		if type(text) ~= "string" then
@@ -114,80 +112,4 @@ return function(mod, deps)
 			end
 		end)
 	end
-
-	local function find_widget(list, target)
-		if type(list) ~= "table" then
-			return nil
-		end
-
-		for _, widget in ipairs(list) do
-			if type(widget) == "table" then
-				if widget.setting_id == target then
-					return widget
-				end
-
-				local found = find_widget(widget.sub_widgets, target) or find_widget(widget.widgets, target)
-
-				if found then
-					return found
-				end
-			end
-		end
-
-		return nil
-	end
-
-	local function live_package_content()
-		local ui = Managers.ui
-
-		if not ui or not ui.view_active or not ui:view_active(OPTIONS_VIEW) then
-			return nil
-		end
-
-		local view = ui:view_instance(OPTIONS_VIEW)
-		local list = view and rawget(view, "_settings_content_widgets")
-
-		if type(list) ~= "table" then
-			return nil
-		end
-
-		for i = 1, #list do
-			local content = list[i] and rawget(list[i], "content")
-			local entry = content and rawget(content, "entry")
-
-			if entry and rawget(entry, "setting_id") == PACKAGES_SETTING then
-				return content
-			end
-		end
-
-		return nil
-	end
-
-	function labels.sync_package_label()
-		local dmf = get_mod("DMF")
-		local key = deps.package_label_key()
-		local title = mod:localize("effect_packages_" .. key)
-		local button = mod:localize("effect_packages_button_" .. key)
-		local widget = nil
-
-		for _, entry in ipairs(dmf and dmf.options_widgets_data or {}) do
-			widget = widget or find_widget(entry, PACKAGES_SETTING)
-		end
-
-		if widget then
-			widget.title = title
-			widget.button_text = button
-			widget.tooltip = title .. "\n" .. mod:localize("effect_packages_description")
-		end
-
-		local live = live_package_content()
-
-		if live then
-			live.text = title
-			live.button_text = button
-			live.original_button_text = button
-		end
-	end
-
-	return labels
 end
