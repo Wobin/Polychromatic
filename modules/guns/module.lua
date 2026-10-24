@@ -1,9 +1,9 @@
 return {
 	api = 2,
-	min_base = "3.0.0",
+	min_base = "3.1.0",
 	id = "guns",
 	label = "Guns",
-	version = "1.1.0",
+	version = "1.2.0",
 	sources = {
 		{
 			id = "flamer", categories = { "mine", "team" }, label = "Flamer", description = "Zealot flamer streams and wall impacts.",
@@ -13,7 +13,9 @@ return {
 		},
 		{ id = "las", categories = { "mine", "team" }, label = "Las weapons", description = "Las beams, muzzle flashes and impacts for lasguns, laspistols and the Helbore." },
 		{ id = "phosphor", categories = { "mine", "team" }, label = "Phosphor pistol", description = "Phosphor pistol muzzle flash, hit impacts, the backblast on each enemy hit and the magazine glow. The shot trail and the burn stay stock." },
+		{ id = "phosphor_glow", categories = { "mine", "team" }, label = "Phosphor pistol: glow", description = "The magazine glow.", glow_of = "phosphor", no_hidden = true },
 		{ id = "plasma", categories = { "mine", "team" }, label = "Plasma gun", description = "Plasma gun muzzle, charge, overcharge vents, beams, impacts and charged explosions, plus the barrel fins cold and hot. The heat gauge stays stock." },
+		{ id = "plasma_glow", categories = { "mine", "team" }, label = "Plasma gun: glow", description = "The barrel fins, cold and hot, in the nearest of 12 hues.", glow_of = "plasma", no_hidden = true },
 	},
 	packages = { "guns_burn", "guns_flame", "guns_glow", "guns_las", "guns_phosphor", "guns_plasma" },
 	engines = { "live_tint", "colour_channels", "burn", "weapon_glow", "bolt_palettes", "scene_lights" },

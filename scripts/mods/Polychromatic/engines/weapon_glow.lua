@@ -11,6 +11,10 @@ return function(mod, core, data_list)
 				weapon.fins = core.data(weapon.fins)
 			end
 
+			if type(weapon.hues) == "string" then
+				weapon.hues = core.data(weapon.hues)
+			end
+
 			if type(weapon.slots) ~= "table" then
 				weapon.slots = DEFAULT_SLOTS
 			end
@@ -71,7 +75,34 @@ return function(mod, core, data_list)
 	local _stock_names = {}
 	local _units_scratch = {}
 	local _rainbow_t = 0
+	local _own = {}
 	local glow = {}
+
+	local function read_own()
+		for i = 1, #WEAPONS do
+			local glow_set = WEAPONS[i].glow_set
+
+			if glow_set then
+				_own[glow_set] = mod:get(glow_set .. "_own") == true
+			end
+		end
+	end
+
+	read_own()
+
+	local function glow_profile(weapon, owner)
+		local glow_set = weapon.glow_set
+
+		if glow_set and _own[glow_set] then
+			return core.profile_for(glow_set, owner)
+		end
+
+		return core.profile_for(weapon.set, owner)
+	end
+
+	local function uses_hues(weapon)
+		return weapon.hues ~= nil and (not weapon.fins or (weapon.glow_set ~= nil and _own[weapon.glow_set] == true))
+	end
 
 	local function stock_name(hex)
 		local name = _stock_names[hex]
@@ -256,6 +287,10 @@ return function(mod, core, data_list)
 				if done then
 					_fin_owner[unit] = category
 					_fin_miss_generation[unit] = nil
+
+					if entries then
+						_hue_applied[unit] = nil
+					end
 				else
 					_fin_miss_generation[unit] = generation
 					_fin_miss_category[unit] = category
@@ -312,8 +347,12 @@ return function(mod, core, data_list)
 				local entries = id and weapon.hues[id]
 
 				if entries and index == nil then
-					if _hue_attached[unit] then
-						restore_hues(unit, entries)
+					if _hue_attached[unit] or _fin_owner[unit] then
+						if restore_hues(unit, entries) and _fin_attached[unit] then
+							_fin_attached[unit] = nil
+						end
+
+						_fin_owner[unit] = nil
 					end
 				elseif entries and _hue_applied[unit] ~= index and _hue_miss_generation[unit] ~= generation then
 					local done = true
@@ -332,6 +371,7 @@ return function(mod, core, data_list)
 					if done then
 						_hue_applied[unit] = index
 						_hue_miss_generation[unit] = nil
+						_fin_owner[unit] = nil
 					else
 						_hue_miss_generation[unit] = generation
 					end
@@ -366,16 +406,14 @@ return function(mod, core, data_list)
 	end
 
 	local function apply_slot(slot, weapon, owner, t, units)
-		local profile = core.profile_for(weapon.set, owner)
+		local profile = glow_profile(weapon, owner)
 
 		units = units or slot_units(slot, weapon)
 
-		if weapon.fins then
-			swap_fins(units, weapon, owner)
-		end
-
-		if weapon.hues then
+		if uses_hues(weapon) then
 			swap_hues(units, weapon, profile, t)
+		elseif weapon.fins then
+			swap_fins(units, weapon, owner)
 		end
 
 		for _, variable in ipairs(weapon.variables) do
@@ -423,6 +461,8 @@ return function(mod, core, data_list)
 	end
 
 	function glow.refresh()
+		read_own()
+
 		for extension in pairs(_tracked) do
 			glow.apply(extension)
 		end
@@ -623,14 +663,12 @@ return function(mod, core, data_list)
 				for _, slot_name in ipairs(SLOTS) do
 					local slot = equipment and equipment[slot_name]
 					local weapon = weapon_for(slot, slot_name)
-					local profile = weapon and core.profile_for(weapon.set, owner)
+					local profile = weapon and glow_profile(weapon, owner)
 
-					if weapon and weapon.fins then
-						swap_fins(slot_units(slot, weapon), weapon, owner)
-					end
-
-					if weapon and weapon.hues then
+					if weapon and uses_hues(weapon) then
 						swap_hues(slot_units(slot, weapon), weapon, profile, core.gameplay_time())
+					elseif weapon and weapon.fins then
+						swap_fins(slot_units(slot, weapon), weapon, owner)
 					end
 
 					if profile and profile.mode == "rainbow" then

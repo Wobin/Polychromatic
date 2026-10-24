@@ -10,6 +10,7 @@ return {
 		{
 			pattern = "/arc_rifle_p1_",
 			set = "arc",
+			glow_set = "arc_glow",
 			variables = {
 				{ name = "\x53\xd0\x94\x9d\xac\x38\xa1\x83", stock = { 0.012, 0.471, 0.859 } },
 			},

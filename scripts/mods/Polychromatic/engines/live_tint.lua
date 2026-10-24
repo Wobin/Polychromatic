@@ -36,6 +36,7 @@ return function(mod, core, data_list)
 	local redshift_owns_sniper = core.redshift_owns_sniper
 	local register_owner_hook = core.register_owner_hook
 	local call_with_spawn_context = core.call_with_spawn_context
+	local call_with_owner_unit = core.call_with_owner_unit
 	local RAINBOW_CYCLES_PER_SECOND = core.RAINBOW_CYCLES_PER_SECOND
 	local STOCK_BRIGHTNESS_STEP = core.STOCK_BRIGHTNESS_STEP
 	local MIN_BRIGHTNESS_STEP = core.MIN_BRIGHTNESS_STEP
@@ -769,7 +770,9 @@ return function(mod, core, data_list)
 		state.spawn_context[flamer_set(self) == "staff" and "content/fx/particles/weapons/flame_staff/psyker_flame_staff_impact_delay" or "content/fx/particles/weapons/rifles/zealot_flamer/zealot_flamer_impact_delay"] = profile
 		state.spawn_context_active = true
 
-		return call_with_spawn_context(func, self, dt, t)
+		local fx_extension = self._fx_extension
+
+		return call_with_owner_unit(fx_extension and fx_extension._unit, profile.category, call_with_spawn_context, func, self, dt, t)
 	end)
 
 	local _hidden_streams = setmetatable({}, { __mode = "k" })

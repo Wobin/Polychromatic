@@ -43,7 +43,7 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 
 | Source | Covers |
 |---|---|
-| Staff: Inferno | Streams and wall impacts. Enemies you set alight glow and burn in that colour (Soulblaze). |
+| Staff: Inferno | Streams, wall impacts and the glow an impact leaves on the ground (nearest of 12 hues). Enemies you set alight glow and burn in that colour (Soulblaze). |
 | Staff: Surge | The lightning bolts, the jumps between targets and the strike on each, plus the basic projectile and its impacts. The hand sparks stay stock. No Hidden. |
 | Staff: Trauma | The basic projectile and its impacts, the charged explosion, its light and the aiming reticule. |
 | Staff: Voidstrike | The basic projectile and its impacts, the charge-up sphere, the charged blast and its impact. |
@@ -73,15 +73,15 @@ Each source has its own settings, chosen from the **Source** dropdown in the mod
 |---|---|
 | Flamer | Zealot flamer streams and wall impacts. Enemies you set alight burn in that colour. |
 | Las weapons | Beams, muzzle flashes and impacts for lasguns, laspistols and the Helbore. |
-| Phosphor pistol | Muzzle flash, hit impacts, the backblast on each enemy hit and the magazine glow. The shot trail and the burn stay stock. |
-| Plasma gun | Muzzle, charge, overcharge vents, beams, impacts, charged explosions and the barrel fins, cold and hot. The heat gauge stays stock. |
+| Phosphor pistol | Muzzle flash, hit impacts, the backblast on each enemy hit and the magazine glow. The shot trail and the burn stay stock. Ticking "Weapon glow uses its own colour" gives the magazine glow a colour of its own. |
+| Plasma gun | Muzzle, charge, overcharge vents, beams, impacts, charged explosions and the barrel fins, cold and hot. The heat gauge stays stock. Ticking "Weapon glow uses its own colour" gives the fins a colour of their own, the nearest of 12 hues. |
 
 ### Skitarii
 
 | Source | Covers |
 |---|---|
 | Arc maul | The Skitarii arc maul's idle arcs, the special's lightning and the coil glow. No Hidden. |
-| Arc rifle | The Skitarii arc rifle's beam lightning, arc chains and their strikes, the impact and its light, and the rifle's glow. No Hidden. |
+| Arc rifle | The Skitarii arc rifle's beam lightning, arc chains and their strikes, the impact and its light, and the rifle's glow. No Hidden. Ticking "Weapon glow uses its own colour" gives the rifle's glow a colour of its own. |
 | Power sword | The Skitarii power sword's blade power field and its crackles, the node glow, the activation sparks, the arcs while the special is active, the sparks at the energy node and the hit sparks with their light, in the nearest of 12 hues. The broad arcs thrown while the special is active stay stock. No Hidden. |
 | Servo-Skull flame | The Skitarii companion's flamer. Enemies it sets alight burn in that colour. |
 | Servo-Skull las | The Skitarii companion's las shots: muzzle flash, beam, linger, impacts and scope glint. |

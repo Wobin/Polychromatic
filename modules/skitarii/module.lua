@@ -1,12 +1,13 @@
 return {
 	api = 2,
-	min_base = "3.0.0",
+	min_base = "3.1.0",
 	id = "skitarii",
 	label = "Skitarii",
-	version = "1.1.0",
+	version = "1.2.0",
 	sources = {
 		{ id = "arc_maul", categories = { "mine", "team" }, label = "Arc maul", description = "Skitarii arc maul: the idle arcs on the head, the special's lightning and the coil glow. Colour, saturation and brightness change live.", no_hidden = true },
 		{ id = "arc", categories = { "mine", "team" }, label = "Arc rifle", description = "Skitarii arc rifle beam lightning, arc chains and their strikes, the impact and its light, plus the arc rifle's glow. Colour, saturation and brightness change live.", no_hidden = true },
+		{ id = "arc_glow", categories = { "mine", "team" }, label = "Arc rifle: glow", description = "The rifle's glow.", glow_of = "arc", no_hidden = true },
 		{ id = "power_sword", categories = { "mine", "team" }, label = "Power sword", description = "Skitarii power sword: the blade's power field and its crackles, the node glow, the activation sparks, the arcs while the special is active, the energy node sparks and the hit sparks, in the nearest of 12 hues. The broad arcs thrown while the special is active stay stock.", no_hidden = true },
 		{
 			id = "skull", categories = { "mine", "team" }, label = "Servo-Skull flame", description = "The Skitarii companion servo-skull flamer.",

@@ -184,6 +184,10 @@ Each module lists its sources by name. A source is present only while its module
 #### Staff: Inferno (mine, team)
 
 - Streams and wall impacts: **live tint**, written while the stream fires.
+- The glow an impact leaves on the ground: **hue copies**. It is drawn by a small unit the impact spawns, so each of the
+  12 impact copies spawns a copy of that unit whose decal material is baked at its own hue, and the copy nearest the
+  setting is spawned; under Rainbow it keeps the hue of the moment of impact. The flames of that same copy are still
+  tinted live.
 - The stream's light: **replacement lights** that follow the stream.
 - Enemies set alight: **hue copies** (Soulblaze palette) and **burn body glow**, when "Soulblaze glow follows these
   settings" is on.
@@ -294,6 +298,8 @@ Each module lists its sources by name. A source is present only while its module
 
 - Muzzle flash, hit impacts and the backblast on each enemy hit: **live tint**.
 - Magazine glow: **weapon surface glow** (emissive vector).
+- With "Weapon glow uses its own colour" ticked, the magazine glow takes the glow settings nested under that box instead of
+  the pistol's. The weapon glow settings offer no Hidden.
 
 #### Plasma gun (mine, team)
 
@@ -301,6 +307,10 @@ Each module lists its sources by name. A source is present only while its module
 - The beam linger: **hue copies** (colour keys), with live tint on top. Its saturation and brightness follow your own
   setting for every owner.
 - The barrel fins, cold and hot: **weapon surface glow** on a **colour channel**.
+- With "Weapon glow uses its own colour" ticked, the fins take the weapon glow settings nested under that box: **unit material
+  swap**. Each fin material has 12 copies baked at fixed hues on both the cold and the hot render target, and the copy
+  nearest the weapon glow colour is swapped in. Saturation and brightness stay at the copy's values and Rainbow steps through
+  the 12 hues. Base puts the stock fins back. The weapon glow settings offer no Hidden.
 
 ### Skitarii module
 
@@ -316,6 +326,8 @@ Each module lists its sources by name. A source is present only while its module
 - The impact's floor glow: **hue copies** (colour keys).
 - The beam and impact lights: **replacement lights**.
 - The rifle's glow: **weapon surface glow** (emissive vector).
+- With "Weapon glow uses its own colour" ticked, the rifle's glow takes the glow settings nested under that box instead of
+  the rifle's.
 
 #### Power sword (mine, team)
 
@@ -359,7 +371,6 @@ Each module lists its sources by name. A source is present only while its module
 
 | Effect | Why |
 |---|---|
-| Inferno staff floor decal | drawn inside the particle system with no handle to colour it |
 | The light inside a las muzzle flash | a cloud with no material |
 | `super_armor_lasgun` | its baked colours are left as the game draws them |
 | Phosphor shot trail and burn | left as the game draws them |

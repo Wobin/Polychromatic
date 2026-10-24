@@ -1,12 +1,12 @@
 return {
 	api = 2,
-	min_base = "3.0.0",
+	min_base = "3.1.0",
 	id = "staves",
 	label = "Staves",
-	version = "1.1.0",
+	version = "1.2.0",
 	sources = {
 		{
-			id = "staff", categories = { "mine", "team" }, label = "Staff: Inferno", description = "Psyker Inferno staff streams and their wall impacts.",
+			id = "staff", categories = { "mine", "team" }, label = "Staff: Inferno", description = "Psyker Inferno staff streams and their wall impacts. The glow an impact leaves on the ground takes the nearest of 12 hues.",
 			widgets = {
 				{ setting_id = "soulblaze", type = "checkbox", default_value = true },
 			},

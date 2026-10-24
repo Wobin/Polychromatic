@@ -1,7 +1,7 @@
 --[[
 	Name: Polychromatic
 	Author: Wobin
-	Date: 13/10/2026
+	Date: 24/10/2026
 ]]--
 
 local mod = get_mod("Polychromatic")
@@ -683,6 +683,7 @@ local _, ENGINE_DISABLED = ENGINE_LIB.load(mod, REGISTRY, {
 	resolve_set = resolve_set,
 	register_owner_hook = register_owner_hook,
 	call_with_spawn_context = call_with_spawn_context,
+	call_with_owner_unit = call_with_owner_unit,
 	effect_stat = effect_stat,
 	redshift_owns_sniper = redshift_owns_sniper,
 	gameplay_time = gameplay_time,

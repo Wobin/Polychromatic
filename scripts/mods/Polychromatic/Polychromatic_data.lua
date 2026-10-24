@@ -118,21 +118,56 @@ local selector_options = {
 	{ text = "select_source", value = NO_SOURCE, show_widgets = {} },
 }
 
+local glows_of = {}
+local source_ids = {}
+
+for i = 1, #SOURCES do
+	source_ids[SOURCES[i].id] = true
+end
+
 for i = 1, #SOURCES do
 	local source = SOURCES[i]
-	local group_id = source.id .. "_group"
-	local sub_widgets = {}
+
+	if source.glow_of and source_ids[source.glow_of] then
+		local list = glows_of[source.glow_of] or {}
+
+		list[#list + 1] = source
+		glows_of[source.glow_of] = list
+	end
+end
+
+local function glow_widget(source)
+	local own = { setting_id = source.id .. "_own", type = "checkbox", default_value = false, sub_widgets = {} }
 
 	for j = 1, #source.categories do
-		sub_widgets[#sub_widgets + 1] = category_widget(source, source.categories[j])
+		own.sub_widgets[#own.sub_widgets + 1] = category_widget(source, source.categories[j])
 	end
 
-	for _, widget in ipairs(source.widgets or {}) do
-		sub_widgets[#sub_widgets + 1] = module_widget(widget)
-	end
+	return own
+end
 
-	set_groups[i] = { setting_id = group_id, type = "group", sub_widgets = sub_widgets }
-	selector_options[i + 1] = { text = group_id, value = group_id, show_widgets = { i } }
+for i = 1, #SOURCES do
+	local source = SOURCES[i]
+
+	if not (source.glow_of and source_ids[source.glow_of]) then
+		local group_id = source.id .. "_group"
+		local sub_widgets = {}
+
+		for j = 1, #source.categories do
+			sub_widgets[#sub_widgets + 1] = category_widget(source, source.categories[j])
+		end
+
+		for _, glow in ipairs(glows_of[source.id] or {}) do
+			sub_widgets[#sub_widgets + 1] = glow_widget(glow)
+		end
+
+		for _, widget in ipairs(source.widgets or {}) do
+			sub_widgets[#sub_widgets + 1] = module_widget(widget)
+		end
+
+		set_groups[#set_groups + 1] = { setting_id = group_id, type = "group", sub_widgets = sub_widgets }
+		selector_options[#selector_options + 1] = { text = group_id, value = group_id, show_widgets = { #set_groups } }
+	end
 end
 
 local stored_source = mod:get(SOURCE_SELECTOR_ID)

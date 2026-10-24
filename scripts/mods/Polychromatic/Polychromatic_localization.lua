@@ -77,6 +77,11 @@ local SHOW_LABELS = {
 	enemy = "Show enemy fire",
 }
 
+local GLOW_SHOW_LABELS = {
+	mine = "Show my weapon glow",
+	team = "Show team weapon glow",
+}
+
 local localization = {
 	mod_name = { en = "Polychromatic" },
 	mod_description = { en = "Recolours or hides weapon and Psyker effects (flame, las, plasma, lightning and warp powers), separately for your own and your team's, plus the enemy sniper laser and exploding barrels." },
@@ -164,7 +169,7 @@ end
 
 for i = 1, #SOURCES do
 	local set = SOURCES[i]
-	local show_labels = SHOW_LABELS
+	local show_labels = set.glow_of and GLOW_SHOW_LABELS or SHOW_LABELS
 
 	local title = escape(set.label)
 
@@ -179,6 +184,19 @@ for i = 1, #SOURCES do
 
 	localization[set.id .. "_group"] = { en = title }
 
+	if set.glow_of then
+		local followed = set.glow_of
+
+		for k = 1, #SOURCES do
+			if SOURCES[k].id == set.glow_of then
+				followed = SOURCES[k].label
+			end
+		end
+
+		localization[set.id .. "_own"] = { en = "Weapon glow uses its own colour" }
+		localization[set.id .. "_own_description"] = { en = escape(set.description) .. "\n\nUnticked, the weapon glow follows the " .. escape(followed) .. " settings above. Ticked, it uses the settings below." }
+	end
+
 	for j = 1, #set.categories do
 		local category = set.categories[j]
 		local prefix = set.id .. "_" .. category .. "_"
@@ -190,7 +208,7 @@ for i = 1, #SOURCES do
 
 		localization[prefix .. "show"] = { en = set.show_label and escape(set.show_label) or show_labels[category] }
 		localization[prefix .. "show_description"] = { en = show_description }
-		localization[prefix .. "mode"] = { en = "Colour" }
+		localization[prefix .. "mode"] = { en = set.glow_of and "Weapon glow colour" or "Colour" }
 		localization[prefix .. "colour"] = { en = "Set colour" }
 		localization[prefix .. "brightness"] = { en = "Brightness (8 = normal)" }
 		localization[prefix .. "brightness_description"] = { en = "Overall brightness. 8 matches the stock effect, 1 is the faintest, 15 the strongest." }
